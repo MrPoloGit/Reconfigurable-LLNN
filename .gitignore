@@ -1,0 +1,11 @@
+hdl/__pycache__/
+utils/__pycache__/
+models/
+lutnn/__pycache__/
+data-mnist/
+data/
+lutnn.egg-info/
+venv/
+.DS_Store
+data-uci/
+examples/.ipynb_checkpoints/
