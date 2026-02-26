@@ -34,18 +34,13 @@ set_property top $TOP [current_fileset]
 launch_runs synth_1 -jobs 8
 wait_on_run synth_1
 
+# Implementation
+launch_runs impl_1 -to_step write_bitstream -jobs 8
+wait_on_run impl_1
 
-report_utilization
+# Copy outputs
+file copy -force llnn_proj.runs/impl_1/$TOP.bit .
+file copy -force llnn_proj.runs/impl_1/$TOP.hwh .
+
+puts "Bitstream generated successfully!"
 exit
-
-
-# # Implementation
-# launch_runs impl_1 -to_step write_bitstream -jobs 8
-# wait_on_run impl_1
-
-# # Copy outputs
-# file copy -force llnn_proj.runs/impl_1/$TOP.bit .
-# file copy -force llnn_proj.runs/impl_1/$TOP.hwh .
-
-# puts "Bitstream generated successfully!"
-# exit
