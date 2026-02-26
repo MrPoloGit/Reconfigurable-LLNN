@@ -231,18 +231,10 @@ def process_file(layers, sv_path, num_neurons, lut_size):
                     src = indices[i][neuron]
                     file.write(f"\tassign lut_in_{neuron}[{lut_size[l]-i-1}] = in[{src}];\n")
 
-                file.write("\talways_comb begin\n")
-                file.write(f"\t\tcase (lut_in_{neuron})\n")
-
                 table = int(values[neuron])
-                for k in range(2 ** lut_size[l]):
-                    bit = (table >> k) & 1
-                    file.write(f"\t\t\t{lut_size[l]}'d{k}: lut_out_{neuron} = 1'b{bit};\n")
-
-                file.write(f"\t\t\tdefault: lut_out_{neuron} = 1'b0;\n")
-                file.write("\t\tendcase\n")
-                file.write("\tend\n")
-
+                table_width = 2 ** lut_size[l]
+                file.write(f"\tlocalparam logic [{table_width-1}:0] lut_table_{neuron} = {table_width}'d{table};\n")
+                file.write(f"\tassign lut_out_{neuron} = lut_table_{neuron}[lut_in_{neuron}];\n")
                 file.write(f"\tassign out[{neuron}] = lut_out_{neuron};\n")
                 file.write("\n")
 
