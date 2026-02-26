@@ -27,6 +27,51 @@ At run-time, the hardware loads the generated bitstream. When a new model is tra
 
 This paves the way for continuous, "Self-Healing" agentic systems on embedded edge devices—capable of detecting concept drift, requesting offline retrains, and hot-swapping network parameters entirely in the field without ever invoking the massive synthesis toolchain.
 
+
+## Running
+
+In python environment
+
+```bash
+python main.py --help
+python -m venv venv
+
+# Windows
+source venv/Scripts/activate
+
+# MacOS and Linux
+source venv/bin/activate
+
+pip install -e .
+pip install -r requirements.txt
+python main.py --train --save --name model1 --dataset mnist --batch-size 128 -lr 0.01 --num-iterations 10000
+python main.py --load --name model1 --dataset mnist
+python main.py --load --vhdl --name model1 --dataset mnist
+python main.py --load --sv --name model1 --dataset mnist
+```
+
+## Importing LUTLayer
+
+```python
+import torch
+from lutnn.lutlayer import LUTLayer, Aggregation
+
+model = torch.nn.Sequential(
+    torch.nn.Flatten(),
+    LUTLayer(input_dim=1000, lut_size=6, n_luts=2048),
+    LUTLayer(input_dim=2048, lut_size=6, n_luts=4000),
+    Aggregation(num_classes=10, tau = 10)
+)
+```
+
+## Train a model
+
+`python main.py --train --save --name model1 --dataset mnist --batch-size 128 -lr 0.01 --num-iterations 10000`
+
+## Test a trained model
+
+`python main.py --load --name model1 --dataset mnist`
+
 ## Background and Citations
 
 This project is an architectural extension of the foundational LLNN concepts detailed in:
