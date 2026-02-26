@@ -29,13 +29,26 @@ module tb_NET;
 
     // Stimulus
     initial begin
-        NET_I = MNIST_seven; #20;
-        NET_I = MNIST_two;   #20;
-        NET_I = MNIST_one;   #20;
-        NET_I = MNIST_zero;  #20;
-        NET_I = MNIST_four;
+        $display("Starting LUTNN simulation...");
+        $dumpfile("tb_NET.vcd");
+        $dumpvars(0, tb_NET);
 
-        #20;
+        NET_I = MNIST_seven; #20;
+        $display("Input: 7 -> Output: %d", NET_O);
+
+        NET_I = MNIST_two;   #20;
+        $display("Input: 2 -> Output: %d", NET_O);
+
+        NET_I = MNIST_one;   #20;
+        $display("Input: 1 -> Output: %d", NET_O);
+
+        NET_I = MNIST_zero;  #20;
+        $display("Input: 0 -> Output: %d", NET_O);
+
+        NET_I = MNIST_four;  #20;
+        $display("Input: 4 -> Output: %d", NET_O);
+
+        $display("Simulation complete.");
         $finish;
     end
 

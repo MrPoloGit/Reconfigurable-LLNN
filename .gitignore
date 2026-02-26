@@ -14,3 +14,5 @@ vivado_*.backup.jou
 vivado_*.backup.log
 vivado.jou
 vivado.log
+*.vcd
+tb_*
