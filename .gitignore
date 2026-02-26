@@ -9,3 +9,8 @@ venv/
 .DS_Store
 data-uci/
 examples/.ipynb_checkpoints/
+build/
+vivado_*.backup.jou
+vivado_*.backup.log
+vivado.jou
+vivado.log

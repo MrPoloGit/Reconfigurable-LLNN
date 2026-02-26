@@ -32,6 +32,13 @@ This paves the way for continuous, "Self-Healing" agentic systems on embedded ed
 
 In python environment
 
+Libraries
+```bash
+sudo apt update
+sudo apt install build-essential
+```
+
+Running the models
 ```bash
 python main.py --help
 python -m venv venv
@@ -48,6 +55,12 @@ python main.py --train --save --name model1 --dataset mnist --batch-size 128 -lr
 python main.py --load --name model1 --dataset mnist
 python main.py --load --vhdl --name model1 --dataset mnist
 python main.py --load --sv --name model1 --dataset mnist
+```
+
+Makefile usage
+```bash
+make bitstream MODEL=model1
+make clean
 ```
 
 ## Importing LUTLayer
