@@ -1,21 +1,19 @@
 // -------------------------------------------------------------------------------------
-// axi_lut_ctrl.sv — AXI-Lite Slave for LLNN Overlay Configuration
+// axi_lut_ctrl_hard.sv — AXI-Lite Slave for LLNN with hardened LUTs
 //
-// Address Map (active-low reset, active-high CE):
-//   0x0000–0x1FFF : Gate programming (write gate_id*4 = 32-bit truth table)
-//   0x2000        : STATUS   (R)  — bit 0 = cfg_busy
-//   0x2004        : GATE_CNT (R)  — total number of gates
+// Simplified version of axi_lut_ctrl without SoftLUT gate programming.
+// Only handles inference I/O via memory-mapped registers.
+//
+// Address Map:
 //   0x3000–0x3030 : NET_I input registers (13 × 32-bit words = 416 bits, 400 used)
 //   0x3034        : NET_O output register (R) — lower 4 bits = classification
 // -------------------------------------------------------------------------------------
 
-module axi_lut_ctrl #(
-    parameter TOTAL_GATES = 1512,
+module axi_lut_ctrl_hard #(
     parameter NET_INPUTS = 400,
     parameter NET_OUTPUTS = 4,
     parameter ADDR_W = 14,
-    parameter DATA_W = 32,
-    parameter GATE_SEL_W = $clog2(TOTAL_GATES)
+    parameter DATA_W = 32
 ) (
     // Clock / Reset
     input logic S_AXI_ACLK,
@@ -48,11 +46,6 @@ module axi_lut_ctrl #(
     output logic S_AXI_RVALID,
     input  logic S_AXI_RREADY,
 
-    // Configuration Interface to SoftLUT5 grid
-    output logic [GATE_SEL_W-1:0] cfg_gate_sel,
-    output logic cfg_ce,
-    output logic cfg_data,
-
     // Inference I/O
     output logic [NET_INPUTS-1:0] net_i,
     input  logic [NET_OUTPUTS-1:0] net_o
@@ -75,17 +68,6 @@ module axi_lut_ctrl #(
   logic [DATA_W-1:0] r_data_r;
   logic [ADDR_W-1:0] ar_addr_r;
 
-  // Config shift state machine
-  typedef enum logic [1:0] {
-    IDLE,
-    SHIFTING,
-    RESPOND
-  } cfg_state_t;
-  cfg_state_t cfg_state;
-  logic [DATA_W-1:0] shift_reg;
-  logic [5:0] bit_cnt; // 0..31
-  logic [GATE_SEL_W-1:0] gate_sel_r;
-
   // Input register file
   logic [DATA_W-1:0] input_regs [NUM_INPUT_WORDS];
 
@@ -95,7 +77,7 @@ module axi_lut_ctrl #(
     for (gi = 0; gi < NUM_INPUT_WORDS; gi++) begin : pack_input
       if ((gi + 1) * 32 <= NET_INPUTS) begin       // if not last word, assign all 32 bits
         assign net_i[gi*32+:32] = input_regs[gi];
-      end else begin                               // if last word, assign only the remaining bits 
+      end else begin                               // if last word, assign only the remaining bits
         assign net_i[NET_INPUTS-1 : gi*32] = input_regs[gi][NET_INPUTS-1-gi*32:0];
       end
     end
@@ -112,7 +94,7 @@ module axi_lut_ctrl #(
       aw_done <= 1'b0;
       aw_addr_r <= '0;
     end else begin
-      if (!aw_done && S_AXI_AWVALID && (!w_done || S_AXI_WVALID) && cfg_state == IDLE) begin
+      if (!aw_done && S_AXI_AWVALID && (!w_done || S_AXI_WVALID)) begin
         aw_ready_r <= 1'b1;
         aw_addr_r <= S_AXI_AWADDR;
         aw_done <= 1'b1;
@@ -135,7 +117,7 @@ module axi_lut_ctrl #(
       w_ready_r <= 1'b0;
       w_done <= 1'b0;
     end else begin
-      if (!w_done && S_AXI_WVALID && (!aw_done || S_AXI_AWVALID) && cfg_state == IDLE) begin
+      if (!w_done && S_AXI_WVALID && (!aw_done || S_AXI_AWVALID)) begin
         w_ready_r <= 1'b1;
         w_done <= 1'b1;
       end else begin
@@ -148,67 +130,33 @@ module axi_lut_ctrl #(
   end
 
   // =========================================================================
-  //  Write Decode + Config Shift State Machine
+  //  Write Decode
   // =========================================================================
   wire write_fire = aw_done && w_done;
 
   // Determine write target region from latched address
-  wire addr_is_gate = (aw_addr_r < 14'h2000);
   wire addr_is_input = (aw_addr_r >= 14'h3000) && (aw_addr_r < 14'h3034);
 
   assign S_AXI_BRESP = 2'b00; // OKAY
   assign S_AXI_BVALID = b_valid_r;
 
-  assign cfg_gate_sel = gate_sel_r;
-  assign cfg_data = shift_reg[0]; // LSB first (matches CFGLUT5)
-  assign cfg_ce = (cfg_state == SHIFTING);
-
   always_ff @(posedge S_AXI_ACLK) begin
     if (!S_AXI_ARESETN) begin
-      cfg_state <= IDLE;
       b_valid_r <= 1'b0;
-      bit_cnt <= '0;
-      shift_reg <= '0;
-      gate_sel_r <= '0;
       for (int i = 0; i < NUM_INPUT_WORDS; i++) input_regs[i] <= '0;
     end else begin
-      case (cfg_state)
-        IDLE: begin
-          if (b_valid_r && S_AXI_BREADY) b_valid_r <= 1'b0;
+      if (b_valid_r && S_AXI_BREADY) b_valid_r <= 1'b0;
 
-          if (write_fire && !b_valid_r) begin
-            if (addr_is_gate) begin
-              // Gate programming: start serial shift
-              gate_sel_r <= aw_addr_r[GATE_SEL_W+1:2]; // word-aligned
-              shift_reg <= S_AXI_WDATA;
-              bit_cnt <= '0;
-              cfg_state <= SHIFTING;
-            end else if (addr_is_input) begin
-              // Input register write
-              input_regs[(aw_addr_r-14'h3000)>>2] <= S_AXI_WDATA;
-              b_valid_r <= 1'b1;
-            end else begin
-              // Other address — just ACK
-              b_valid_r <= 1'b1;
-            end
-          end
-        end
-
-        SHIFTING: begin
-          shift_reg <= {1'b0, shift_reg[DATA_W-1:1]}; // right shift (LSB out)
-          bit_cnt <= bit_cnt + 1'b1;
-          if (bit_cnt == 6'd31) begin
-            cfg_state <= RESPOND;
-          end
-        end
-
-        RESPOND: begin
+      if (write_fire && !b_valid_r) begin
+        if (addr_is_input) begin
+          // Input register write
+          input_regs[(aw_addr_r-14'h3000)>>2] <= S_AXI_WDATA;
           b_valid_r <= 1'b1;
-          cfg_state <= IDLE;
+        end else begin
+          // Other address — just ACK
+          b_valid_r <= 1'b1;
         end
-
-        default: cfg_state <= IDLE;
-      endcase
+      end
     end
   end
 
@@ -236,8 +184,6 @@ module axi_lut_ctrl #(
       if (ar_ready_r) begin
         r_valid_r <= 1'b1;
         case (ar_addr_r)
-          14'h2000: r_data_r <= {31'b0, (cfg_state != IDLE)}; // STATUS
-          14'h2004: r_data_r <= TOTAL_GATES; // GATE_CNT
           14'h3034: r_data_r <= {{(DATA_W - NET_OUTPUTS) {1'b0}}, net_o}; // NET_O
           default: r_data_r <= 32'hDEAD_BEEF;
         endcase

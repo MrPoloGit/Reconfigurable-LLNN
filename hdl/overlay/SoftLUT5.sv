@@ -1,4 +1,5 @@
 // -------------------------------------------------------------------------------------
+// UNTESTED GEMINI/ANTIGRAVITY CODE: DO NOT USE FOR NOW.
 // SoftLUT5.sv — Reconfigurable Logic Cell for LLNN Overlay
 // Wraps the Xilinx CFGLUT5 primitive (available in SLICEM sites on 7-Series)
 //
