@@ -42,14 +42,12 @@ sudo apt update
 sudo apt install build-essential
 sudo apt install python3
 sudo apt install python3-pip
+sudo apt install python3.12-venv
 
 # Create the python environment
 python3 -m venv venv
 
-# Entering Windows
-source venv/Scripts/activate
-
-# Entering MacOS and Linux
+# Entering MacOS, WSL, and Linux
 source venv/bin/activate
 
 # Setting up the environment 

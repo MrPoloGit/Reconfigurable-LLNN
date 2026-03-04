@@ -9,8 +9,17 @@ venv/
 .DS_Store
 data-uci/
 examples/.ipynb_checkpoints/
+
+# Vivado
 build/
 vivado_*.backup.jou
 vivado_*.backup.log
 vivado.jou
 vivado.log
+vivado_pid*.str
+.Xil/
+
+
+# Temporary?
+boards/
+constraints/
