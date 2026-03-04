@@ -22,7 +22,11 @@ BOARD_REPO_WIN  := $(shell wslpath -m "$(BOARD_REPO)")
 # CONSTRAINTS := constraints/PYNQ-Z2\ v1.0.xdc
 # CONSTRAINTS_WIN := $(shell wslpath -m "$(CONSTRAINTS)")
 
-.PHONY: help project open build clean
+SV2V_DIR := data/verilog/$(MODEL)
+
+SV2V_FILES_UNIX := $(patsubst $(SV_DIR)/%.sv,$(SV2V_DIR)/%.v,$(wildcard $(SV_DIR)/*.sv))
+
+.PHONY: help sv2v project open build clean
 
 help:
 	@echo ""
@@ -30,6 +34,9 @@ help:
 	@echo "========================"
 	@echo ""
 	@echo "Targets:"
+	@echo ""
+	@echo "  make sv2v [MODEL=modelX]"
+	@echo "      Convert SystemVerilog to Verilog using sv2v."
 	@echo ""
 	@echo "  make project [MODEL=modelX]"
 	@echo "      Create Vivado project."
@@ -47,6 +54,16 @@ help:
 	@echo ""
 	@echo "  MODEL=model1 (default)"
 	@echo ""
+
+sv2v:
+	@echo "Converting SystemVerilog -> Verilog for model: $(MODEL)"
+	@mkdir -p "$(SV2V_DIR)"
+
+	@for f in $(SV_DIR)/*.sv; do \
+		base=$$(basename $$f .sv); \
+		echo "  $$base.sv -> $$base.v"; \
+		sv2v $$f > "$(SV2V_DIR)/$$base.v"; \
+	done
 
 project:
 	@echo "Creating project for model: $(MODEL)"
