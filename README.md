@@ -30,23 +30,30 @@ This paves the way for continuous, "Self-Healing" agentic systems on embedded ed
 
 ## Running
 
-In python environment
+Setting up, 
 
-Libraries
+Ubuntu/WSL:
 ```bash
 sudo apt update
 sudo apt install build-essential
 ```
 
+MacOS using brew
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew update
+brew install gcc make cmake pkg-config
+```
+
 Running the models
 ```bash
-python main.py --help
+# Create the python environment
 python -m venv venv
 
-# Windows
+# Entering Windows
 source venv/Scripts/activate
 
-# MacOS and Linux
+# Entering MacOS and Linux
 source venv/bin/activate
 
 pip install -e .

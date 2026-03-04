@@ -32,10 +32,10 @@ def gen_globals_file(number_of_inputs, number_of_layers, num_neurons, lut_size, 
         file.write("\n")
 
         file.write("// Network configuration\n")
-        file.write(f"localparam NET_INPUTS = {number_of_inputs};\n")
+        file.write(f"localparam NET_INPUTS      = {number_of_inputs};\n")
         for i in range(number_of_layers):
-            file.write(f"localparam L{i}_NEURONS = {num_neurons[i]};\n")
-        file.write(f"localparam CLASS_OUTS = {outputs_per_class};\n")
+            file.write(f"localparam L{i}_NEURONS      = {num_neurons[i]};\n")
+        file.write(f"localparam CLASS_OUTS      = {outputs_per_class};\n")
         file.write(f"localparam NET_OUTPUT_BITS = {output_bits};\n")
 
         file.write("\n")
@@ -58,7 +58,7 @@ def gen_top_file(sv_path, number_of_layers, number_of_classes, num_neurons, outp
         file.write("\n")
 
         for i in range(number_of_layers):
-            file.write(f"\tlogic [L{i}_NEURONS-1:0] F_L{i};\n")
+            file.write(f"\tlogic [L{i}_NEURONS-1:0] 			 F_L{i};\n")
 
         c_width = "$clog2(CLASS_OUTS+1)"
         for i in range(number_of_classes):
@@ -68,7 +68,7 @@ def gen_top_file(sv_path, number_of_layers, number_of_classes, num_neurons, outp
             file.write(f"\tlogic [{c_width}-1:0] max{i};\n")
 
         for i in range(number_of_classes - 1):
-            file.write(f"\tlogic idx{i};\n")
+            file.write(f"\tlogic 							 idx{i};\n")
 
         file.write("\n")
 
@@ -173,7 +173,7 @@ def gen_comparator_file(sv_path):
         file.write("\tinput  logic [$clog2(CLASS_OUTS+1)-1:0] in1,\n")
         file.write("\tinput  logic [$clog2(CLASS_OUTS+1)-1:0] in2,\n")
         file.write("\toutput logic [$clog2(CLASS_OUTS+1)-1:0] max,\n")
-        file.write("\toutput logic                          idx\n")
+        file.write("\toutput logic                            idx\n")
         file.write(");\n")
         file.write("\n")
 
