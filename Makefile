@@ -66,9 +66,14 @@ open:
 
 build:
 	@echo "Building model: $(MODEL)"
-	mkdir -p "$(BUILD_DIR)"
+	@if [ ! -f "$(BUILD_DIR)/$(TOP).xpr" ]; then \
+		echo "Error: Vivado project not found."; \
+		echo "Expected: $(BUILD_DIR)/$(TOP).xpr"; \
+		echo "Run 'make project MODEL=$(MODEL)' first."; \
+		exit 1; \
+	fi
 	$(VIVADO) -mode batch -source scripts/build.tcl \
-		-tclargs $(TOP) "$(BUILD_WIN)"
+		-tclargs "$(TOP)" "$(BUILD_WIN)"
 
 clean:
 ifdef MODEL
