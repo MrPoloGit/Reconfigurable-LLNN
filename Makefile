@@ -10,8 +10,6 @@ OVERLAY_DIR := hdl/overlay
 
 BOARD_REPO  := boards
 
-# CONSTRAINTS := constraints/PYNQ-Z2\ v1.0.xdc
-
 VIVADO := cmd.exe /c C:\\Xilinx\\Vivado\\$(VIVADO_VERSION)\\bin\\vivado.bat
 
 SV_FILES_UNIX := $(wildcard $(SV_DIR)/*.sv) $(wildcard $(OVERLAY_DIR)/*.sv)
@@ -20,6 +18,8 @@ SV_FILES := $(shell for f in $(SV_FILES_UNIX); do wslpath -m "$$f"; done)
 
 BUILD_WIN       := $(shell wslpath -m "$(BUILD_DIR)")
 BOARD_REPO_WIN  := $(shell wslpath -m "$(BOARD_REPO)")
+
+# CONSTRAINTS := constraints/PYNQ-Z2\ v1.0.xdc
 # CONSTRAINTS_WIN := $(shell wslpath -m "$(CONSTRAINTS)")
 
 .PHONY: help project open build clean
@@ -40,26 +40,14 @@ help:
 	@echo "  make build [MODEL=modelX]"
 	@echo "      Run synthesis + implementation."
 	@echo ""
-	@echo "  make clean"
-	@echo "      Delete build directory."
+	@echo "  make clean [MODEL=modelX]"
+	@echo "      Delete a specific model project, if nothing is specified delete the build folder."
 	@echo ""
 	@echo "Options:"
 	@echo ""
 	@echo "  MODEL=model1 (default)"
-	@echo "  VIVADO_VERSION=2024.1 (default)"
-	@echo ""
-	@echo "Example:"
-	@echo ""
-	@echo "  make project MODEL=model2"
-	@echo "  make build MODEL=model2"
 	@echo ""
 
-# project:
-# 	@echo "Creating project for model: $(MODEL)"
-# 	@echo "Vivado version: $(VIVADO_VERSION)"
-# 	mkdir -p "$(BUILD_DIR)"
-# 	$(VIVADO) -mode batch -source scripts/project.tcl \
-# 		-tclargs $(TOP) $(PART) "$(BUILD_WIN)" $(SV_FILES) "$(CONSTRAINTS_WIN)" "$(BOARD_REPO_WIN)"
 project:
 	@echo "Creating project for model: $(MODEL)"
 	@echo "Vivado version: $(VIVADO_VERSION)"
@@ -83,4 +71,8 @@ build:
 		-tclargs $(TOP) "$(BUILD_WIN)"
 
 clean:
+ifdef MODEL
+	rm -rf "$(BUILD_DIR)"
+else
 	rm -rf build
+endif

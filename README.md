@@ -59,7 +59,7 @@ pip3 install -r requirements.txt
 
 Use Devcontainer.
 
-### Running the models
+### Creating the models
 
 ```bash
 # For help and list of command
@@ -81,15 +81,17 @@ python3 main.py --load --sv --name model1 --dataset mnist
 #### Setup
 - Make sure vivado is installed.
 - Download PYNQ-Z2 board files: https://www.tulembedded.com/FPGA/ProductsPYNQ-Z2.html#:~:text=Z2%20Board%20File
-- Extract and put them in `<your vivado installation>/Vivado/<version>/data/boards/board_files`
-- If board_files doesn't exist create the folder, if tul folder is in board_files create it too.
+- Extract and put them in a folder in root called `board/tul/`
+- Also the constraints file in the `constraint/` folder
 
 We have set things up for a PYNQ-Z2 board, here are the [instructions](https://pynq.readthedocs.io/en/latest/getting_started/pynq_z2_setup.html) to set up the board. We are using the [LCFGLUT5T](https://docs.amd.com/r/en-US/ug953-vivado-7series-libraries/CFGLUT5) LUT for our example.
 
-#### Generating Bitstream
 ```bash
-make bitstream MODEL=model1
-make clean
+make help      # print out instructions on usage
+make project   # creates the basic project with the constraints and necessary files included
+make open      # opens the project in the vivado gui
+make bitstream # synthesize
+make clean     # cleans everything in build
 ```
 
 ## Importing LUTLayer
