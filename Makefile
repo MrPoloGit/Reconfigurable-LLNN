@@ -2,7 +2,7 @@ MODEL ?= model1
 PART  := xc7z020clg400-1
 TOP   := top
 
-VIVADO_VERSION := 2024.1
+VIVADO_VERSION := 2025.2
 
 BUILD_DIR   := build/$(MODEL)
 SV_DIR      := data/sv/$(MODEL)
@@ -10,14 +10,21 @@ OVERLAY_DIR := hdl/overlay
 
 BOARD_REPO  := boards
 
-VIVADO := cmd.exe /c C:\\Xilinx\\Vivado\\$(VIVADO_VERSION)\\bin\\vivado.bat
+VIVADO_XILINX := C:\\Xilinx\\Vivado\\$(VIVADO_VERSION)\\bin\\vivado.bat
+VIVADO_AMD   := C:\\AMDDesignTools\\$(VIVADO_VERSION)\\Vivado\\bin\\vivado.bat
+
+VIVADO_BAT := $(shell cmd.exe /c "if exist $(VIVADO_AMD) (echo $(VIVADO_AMD)) else if exist $(VIVADO_XILINX) (echo $(VIVADO_XILINX))")
+VIVADO := cmd.exe /c "cd /d C:\ && C:\\AMDDesignTools\\$(VIVADO_VERSION)\\Vivado\\bin\\vivado.bat"
+
+REPO_ROOT_WIN := $(shell wslpath -w "$(CURDIR)")
+PROJECT_TCL_WIN := $(shell wslpath -w "$(CURDIR)/scripts/project.tcl")
 
 SV_FILES_UNIX := $(wildcard $(SV_DIR)/*.sv) $(wildcard $(OVERLAY_DIR)/*.sv)
 
 SV_FILES := $(shell for f in $(SV_FILES_UNIX); do wslpath -m "$$f"; done)
 
-BUILD_WIN       := $(shell wslpath -m "$(BUILD_DIR)")
-BOARD_REPO_WIN  := $(shell wslpath -m "$(BOARD_REPO)")
+BUILD_WIN := $(shell wslpath -w "$(BUILD_DIR)")
+BOARD_REPO_WIN := $(shell wslpath -w "$(BOARD_REPO)")
 
 # CONSTRAINTS := constraints/PYNQ-Z2\ v1.0.xdc
 # CONSTRAINTS_WIN := $(shell wslpath -m "$(CONSTRAINTS)")
@@ -52,7 +59,7 @@ project:
 	@echo "Creating project for model: $(MODEL)"
 	@echo "Vivado version: $(VIVADO_VERSION)"
 	mkdir -p "$(BUILD_DIR)"
-	$(VIVADO) -mode batch -source scripts/project.tcl \
+	$(VIVADO) -mode batch -source "$(PROJECT_TCL_WIN)" \
 		-tclargs "$(TOP)" "$(PART)" "$(BUILD_WIN)" "$(BOARD_REPO_WIN)" $(SV_FILES)
 
 open:
