@@ -32,23 +32,19 @@ This paves the way for continuous, "Self-Healing" agentic systems on embedded ed
 
 ### Set up
 
-Ubuntu/WSL:
+#### Ubuntu/WSL:
+
+For just simulating and getting the HDL, use the devcontainer.
+
 ```bash
+# Installing the necessary tools
 sudo apt update
 sudo apt install build-essential
-```
+sudo apt install python3
+sudo apt install python3-pip
 
-MacOS using brew:
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew update
-brew install gcc make cmake pkg-config
-```
-
-### Running the models
-```bash
 # Create the python environment
-python -m venv venv
+python3 -m venv venv
 
 # Entering Windows
 source venv/Scripts/activate
@@ -57,26 +53,42 @@ source venv/Scripts/activate
 source venv/bin/activate
 
 # Setting up the environment 
-pip install -e .
-pip install -r requirements.txt
+pip3 install -e .
+pip3 install -r requirements.txt
+```
 
+#### MacOS:
+
+Use Devcontainer.
+
+### Running the models
+
+```bash
 # For help and list of command
-python main.py --help
+python3 main.py --help
 
 # Training a model
-python main.py --train --save --name model1 --dataset mnist --batch-size 128 -lr 0.01 --num-iterations 10000
+python3 main.py --train --save --name model1 --dataset mnist --batch-size 128 -lr 0.01 --num-iterations 10000
 
 # Testing trained model
-python main.py --load --name model1 --dataset mnist
+python3 main.py --load --name model1 --dataset mnist
 
 # Generating HDL code
-python main.py --load --vhdl --name model1 --dataset mnist
-python main.py --load --sv --name model1 --dataset mnist
+python3 main.py --load --vhdl --name model1 --dataset mnist
+python3 main.py --load --sv --name model1 --dataset mnist
 ```
 
 ### Synthesizing
+
+#### Setup
+- Make sure vivado is installed.
+- Download PYNQ-Z2 board files: https://www.tulembedded.com/FPGA/ProductsPYNQ-Z2.html#:~:text=Z2%20Board%20File
+- Extract and put them in `<your vivado installation>/Vivado/<version>/data/boards/board_files`
+- If board_files doesn't exist create the folder, if tul folder is in board_files create it too.
+
 We have set things up for a PYNQ-Z2 board, here are the [instructions](https://pynq.readthedocs.io/en/latest/getting_started/pynq_z2_setup.html) to set up the board. We are using the [LCFGLUT5T](https://docs.amd.com/r/en-US/ug953-vivado-7series-libraries/CFGLUT5) LUT for our example.
 
+#### Generating Bitstream
 ```bash
 make bitstream MODEL=model1
 make clean
