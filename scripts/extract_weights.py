@@ -55,7 +55,7 @@ def extract_truth_tables(model):
             n_luts = layer.indices.shape[1]
             num_entries = 2 ** lut_size
 
-            # Harden: softmax → round → packs into integer
+            # Harden: softmax -> round -> packs into integer
             logits = torch.stack((layer.w, layer.w_comp), dim=0)
             w_round = torch.round(F.softmax(logits, dim=0)[0]).type(torch.int64)
 
@@ -109,7 +109,7 @@ def main():
     with open(out_path, "w") as f:
         json.dump(output, f, indent=2)
 
-    print(f"[weights] ✅ Extracted {len(gates)} truth tables → {out_path}")
+    print(f"[weights] Extracted {len(gates)} truth tables -> {out_path}")
 
     # Also write a compact binary file for fast loading
     bin_path = out_dir / "weights.bin"
@@ -118,7 +118,7 @@ def main():
         f.write(struct.pack("<I", len(gates)))  # header: gate count
         for g in gates:
             f.write(struct.pack("<I", g["init"]))  # 32-bit LE per gate
-    print(f"[weights] ✅ Binary weights → {bin_path} ({bin_path.stat().st_size} bytes)")
+    print(f"[weights] Binary weights -> {bin_path} ({bin_path.stat().st_size} bytes)")
 
 
 if __name__ == "__main__":

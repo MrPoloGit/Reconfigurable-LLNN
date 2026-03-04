@@ -11,10 +11,10 @@ Usage (on the PYNQ board):
     python3 pynq_driver.py --overlay llnn_overlay.bit --weights weights.json
 
 AXI Address Map (matches axi_lut_ctrl.sv):
-    0x0000–0x1FFF : Gate programming  (write gate_id * 4 = 32-bit truth table)
+    0x0000-0x1FFF : Gate programming  (write gate_id * 4 = 32-bit truth table)
     0x2000        : STATUS            (bit 0 = cfg_busy)
     0x2004        : TOTAL_GATES       (read-only)
-    0x3000–0x3030 : NET_I input regs  (13 × 32-bit words)
+    0x3000-0x3030 : NET_I input regs  (13 x 32-bit words)
     0x3034        : NET_O output reg  (lower 4 bits = classification)
 """
 
@@ -87,7 +87,7 @@ class LLNNOverlay:
         for gate_id, tt in enumerate(truth_tables):
             self.program_gate(gate_id, tt)
         elapsed = (time.time() - t0) * 1000
-        print(f"[driver] ✅ All gates programmed in {elapsed:.1f} ms")
+        print(f"[driver] All gates programmed in {elapsed:.1f} ms")
 
     def load_weights_json(self, json_path):
         """Load truth tables from a weights.json file."""
@@ -113,7 +113,7 @@ class LLNNOverlay:
             input_bits: numpy array or list of 0/1 values, length = NET_INPUTS (e.g., 400)
 
         Returns:
-            int: predicted class (0–9 for MNIST)
+            int: predicted class (0-9 for MNIST)
         """
         # Pack input bits into 32-bit words and write to input registers
         input_bits = np.array(input_bits, dtype=np.uint32)

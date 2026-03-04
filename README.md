@@ -25,12 +25,12 @@ A trained logic neural network model is parsed to extract its connectivity graph
 ### Phase 2: Run-Time Re-Programming (Zero-Synthesis Updates)
 At run-time, the hardware loads the generated bitstream. When a new model is trained or updated weights are derived offline, they are exported into a binary weight file. The SoC processor parses this file and programs the internal truth tables of the network via direct memory writes. Forward-pass inference remains purely combinational and blisteringly fast, while updating the weights across the entire network via the PS takes only a tiny fraction of a second.
 
-This paves the way for continuous, "Self-Healing" agentic systems on embedded edge devices—capable of detecting concept drift, requesting offline retrains, and hot-swapping network parameters entirely in the field without ever invoking the massive synthesis toolchain.
+This paves the way for continuous, "Self-Healing" agentic systems on embedded edge devices which are capable of detecting concept drift, requesting offline retrains, and hot-swapping network parameters entirely in the field without ever invoking the massive synthesis toolchain.
 
 
 ## Running
 
-Setting up, 
+### Set up
 
 Ubuntu/WSL:
 ```bash
@@ -38,14 +38,14 @@ sudo apt update
 sudo apt install build-essential
 ```
 
-MacOS using brew
+MacOS using brew:
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 brew update
 brew install gcc make cmake pkg-config
 ```
 
-Running the models
+### Running the models
 ```bash
 # Create the python environment
 python -m venv venv
@@ -56,15 +56,27 @@ source venv/Scripts/activate
 # Entering MacOS and Linux
 source venv/bin/activate
 
+# Setting up the environment 
 pip install -e .
 pip install -r requirements.txt
+
+# For help and list of command
+python main.py --help
+
+# Training a model
 python main.py --train --save --name model1 --dataset mnist --batch-size 128 -lr 0.01 --num-iterations 10000
+
+# Testing trained model
 python main.py --load --name model1 --dataset mnist
+
+# Generating HDL code
 python main.py --load --vhdl --name model1 --dataset mnist
 python main.py --load --sv --name model1 --dataset mnist
 ```
 
-Makefile usage
+### Synthesizing
+We have set things up for a PYNQ-Z2 board, here are the [instructions](https://pynq.readthedocs.io/en/latest/getting_started/pynq_z2_setup.html) to set up the board. We are using the [LCFGLUT5T](https://docs.amd.com/r/en-US/ug953-vivado-7series-libraries/CFGLUT5) LUT for our example.
+
 ```bash
 make bitstream MODEL=model1
 make clean
@@ -84,21 +96,11 @@ model = torch.nn.Sequential(
 )
 ```
 
-## Train a model
-
-`python main.py --train --save --name model1 --dataset mnist --batch-size 128 -lr 0.01 --num-iterations 10000`
-
-## Test a trained model
-
-`python main.py --load --name model1 --dataset mnist`
-
 ## Background and Citations
 
 This project is an architectural extension of the foundational LLNN concepts detailed in:
 
 [LLNN: A Scalable LUT-Based Logic Neural Network Architecture for FPGAs](https://ieeexplore.ieee.org/abstract/document/11154450)
-
-If you build upon the core LLNN functionality, please cite:
 
 ```bibtex
 @ARTICLE{11154450,
@@ -112,3 +114,5 @@ If you build upon the core LLNN functionality, please cite:
   doi={10.1109/TCSI.2025.3606054}
 }
 ```
+
+https://docs.amd.com/r/en-US/ug953-vivado-7series-libraries/CFGLUT5
