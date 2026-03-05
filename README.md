@@ -140,3 +140,6 @@ https://docs.amd.com/r/en-US/ug953-vivado-7series-libraries/CFGLUT5
 
 ## NOTES:
 - get rid vhdl stuff or update to also have clk and rst?
+- clean up all other markdown files
+- make sure to add in makefile option to use sv, vhdl, or verilog?
+- maybe remove sv and change it to verilog?
