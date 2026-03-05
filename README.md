@@ -137,3 +137,6 @@ This project is an architectural extension of the foundational LLNN concepts det
 ```
 
 https://docs.amd.com/r/en-US/ug953-vivado-7series-libraries/CFGLUT5
+
+## NOTES:
+- get rid vhdl stuff or update to also have clk and rst?
