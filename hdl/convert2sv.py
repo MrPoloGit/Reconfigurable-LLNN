@@ -246,7 +246,7 @@ def gen_layer_header(file, layer):
         file.write(f"\tinput  logic [L{layer - 1}_NEURONS-1:0] in,\n")
     file.write(f"\toutput logic [L{layer}_NEURONS-1:0] out\n")
     file.write("\tinput logic clk,\n")
-    file.write("\tinput logic rst,\n")
+    file.write("\tinput logic rst\n")
     file.write(");\n")
     file.write("\n")
 
