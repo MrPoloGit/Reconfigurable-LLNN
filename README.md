@@ -23,10 +23,9 @@ The lifecycle of a LiveLLNN system operates in two completely separate time doma
 A trained logic neural network model is parsed to extract its connectivity graph. The system generates a Verilog netlist instantiating the Soft-LUT overlay, routing the interconnects, and wrapping it within an AXI-addressable control module. The design is then synthesized into a static bitstream. This heavy physical implementation step happens exactly once for a given architecture topology.
 
 ### Phase 2: Run-Time Re-Programming (Zero-Synthesis Updates)
-At run-time, the hardware loads the generated bitstream. When a new model is trained or updated weights are derived offline, they are exported into a binary weight file. The SoC processor parses this file and programs the internal truth tables of the network via direct memory writes. Forward-pass inference remains purely combinational and blisteringly fast, while updating the weights across the entire network via the PS takes only a tiny fraction of a second.
+At run-time, the hardware loads the generated bitstream. When a new model is trained or updated weights are derived offline, they are exported into a binary weight file. The SoC processor parses this file and programs the internal truth tables of the network via direct memory writes. Forward-pass inference becomes sequential due to the `CFGLUT5` requiring a clk signal and blisteringly fast, while updating the weights across the entire network via the PS takes only a tiny fraction of a second.
 
-This paves the way for continuous, "Self-Healing" agentic systems on embedded edge devices which are capable of detecting concept drift, requesting offline retrains, and hot-swapping network parameters entirely in the field without ever invoking the massive synthesis toolchain.
-
+This paves the way for continuous system on embedded edge devices which are capable of detecting concept drift, requesting offline retrains, and hot-swapping network parameters entirely in the field without ever invoking the massive synthesis toolchain.
 
 ## Running
 
@@ -143,3 +142,6 @@ https://docs.amd.com/r/en-US/ug953-vivado-7series-libraries/CFGLUT5
 - clean up all other markdown files
 - make sure to add in makefile option to use sv, vhdl, or verilog?
 - maybe remove sv and change it to verilog?
+- maybe an ability to select certain parts of the model to be static and not full reconfigurable
+- how to update weights? does the model architecture change in training? we need to change lutnn and lutlayer to allow use to pass a previous model and do extra training on it
+- use sv2v on tb_NET.sv to make tb_NET.v
