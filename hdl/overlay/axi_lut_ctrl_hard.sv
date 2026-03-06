@@ -79,53 +79,71 @@ module axi_lut_ctrl_hard #(
 
   // =========================================================================
   //  AXI-Lite Write Channel
-  //  Single-cycle handshake: AWREADY, WREADY, and BVALID all assert in the
-  //  same clock cycle when AWVALID && WVALID && response channel is free.
+  //
+  //  Accepts AW and W independently (they may arrive on different cycles
+  //  from the Xilinx protocol converter). When both have been captured,
+  //  performs the write and issues the B response.
   // =========================================================================
-  logic s_axi_awready_reg = 1'b0, s_axi_awready_next;
-  logic s_axi_wready_reg  = 1'b0, s_axi_wready_next;
-  logic s_axi_bvalid_reg  = 1'b0, s_axi_bvalid_next;
-  logic mem_wr_en;
+  logic s_axi_awready_reg = 1'b0;
+  logic s_axi_wready_reg  = 1'b0;
+  logic s_axi_bvalid_reg  = 1'b0;
+
+  // Capture flags: set when AW/W accepted, cleared when B handshake completes
+  logic aw_captured = 1'b0;
+  logic w_captured  = 1'b0;
+  logic [ADDR_W-1:0] aw_addr_latched;
+  logic [DATA_W-1:0] w_data_latched;
 
   assign S_AXI_AWREADY = s_axi_awready_reg;
   assign S_AXI_WREADY  = s_axi_wready_reg;
   assign S_AXI_BRESP   = 2'b00;
   assign S_AXI_BVALID  = s_axi_bvalid_reg;
 
-  always_comb begin
-    mem_wr_en = 1'b0;
-    s_axi_awready_next = 1'b0;
-    s_axi_wready_next  = 1'b0;
-    s_axi_bvalid_next  = s_axi_bvalid_reg && !S_AXI_BREADY;
-
-    if (S_AXI_AWVALID && S_AXI_WVALID
-        && (!S_AXI_BVALID || S_AXI_BREADY)
-        && (!s_axi_awready_reg && !s_axi_wready_reg)) begin
-      s_axi_awready_next = 1'b1;
-      s_axi_wready_next  = 1'b1;
-      s_axi_bvalid_next  = 1'b1;
-      mem_wr_en          = 1'b1;
-    end
-  end
-
-  // Determine write target region from address
-  wire addr_is_input = (S_AXI_AWADDR >= ADDR_INPUT_BASE)
-                     && (S_AXI_AWADDR <  ADDR_OUTPUT);
+  // Determine write target region from latched address
+  wire wr_addr_is_input = (aw_addr_latched >= ADDR_INPUT_BASE)
+                        && (aw_addr_latched <  ADDR_OUTPUT);
 
   always_ff @(posedge S_AXI_ACLK) begin
-    s_axi_awready_reg <= s_axi_awready_next;
-    s_axi_wready_reg  <= s_axi_wready_next;
-    s_axi_bvalid_reg  <= s_axi_bvalid_next;
-
-    if (mem_wr_en && addr_is_input) begin
-      input_regs[(S_AXI_AWADDR - ADDR_INPUT_BASE) >> 2] <= S_AXI_WDATA;
-    end
-
     if (!S_AXI_ARESETN) begin
       s_axi_awready_reg <= 1'b0;
       s_axi_wready_reg  <= 1'b0;
       s_axi_bvalid_reg  <= 1'b0;
+      aw_captured        <= 1'b0;
+      w_captured         <= 1'b0;
       for (int i = 0; i < NUM_INPUT_WORDS; i++) input_regs[i] <= '0;
+    end else begin
+      // --- AW channel: accept address when offered and not already captured ---
+      if (S_AXI_AWVALID && !aw_captured) begin
+        s_axi_awready_reg <= 1'b1;
+        aw_addr_latched   <= S_AXI_AWADDR;
+        aw_captured       <= 1'b1;
+      end else begin
+        s_axi_awready_reg <= 1'b0;
+      end
+
+      // --- W channel: accept data when offered and not already captured ---
+      if (S_AXI_WVALID && !w_captured) begin
+        s_axi_wready_reg <= 1'b1;
+        w_data_latched   <= S_AXI_WDATA;
+        w_captured       <= 1'b1;
+      end else begin
+        s_axi_wready_reg <= 1'b0;
+      end
+
+      // --- Write execute: both channels captured → perform write + issue B ---
+      if (aw_captured && w_captured && !s_axi_bvalid_reg) begin
+        if (wr_addr_is_input) begin
+          input_regs[(aw_addr_latched - ADDR_INPUT_BASE) >> 2] <= w_data_latched;
+        end
+        s_axi_bvalid_reg <= 1'b1;
+        aw_captured      <= 1'b0;
+        w_captured       <= 1'b0;
+      end
+
+      // --- B channel: clear response when master accepts ---
+      if (s_axi_bvalid_reg && S_AXI_BREADY) begin
+        s_axi_bvalid_reg <= 1'b0;
+      end
     end
   end
 
