@@ -23,3 +23,5 @@ vivado_pid*.str
 # Temporary?
 boards/
 constraints/
+NA/
+.nfs*
