@@ -74,14 +74,14 @@ Use Devcontainer.
 python3 main.py --help
 
 # Training a model
-python3 main.py --train --save --name model1 --dataset mnist --batch-size 128 -lr 0.01 --num-iterations 10000
+python3 main.py --train --save --name model1 --dataset mnist20x20 --batch-size 128 -lr 0.01 --num-iterations 10000
 
 # Testing trained model
-python3 main.py --load --name model1 --dataset mnist
+python3 main.py --load --name model1 --dataset mnist20x20
 
 # Generating HDL code
-python3 main.py --load --vhdl --name model1 --dataset mnist
-python3 main.py --load --sv --name model1 --dataset mnist
+python3 main.py --load --vhdl --name model1 --dataset mnist20x20
+python3 main.py --load --sv --name model1 --dataset mnist20x20
 ```
 
 ### Synthesizing
