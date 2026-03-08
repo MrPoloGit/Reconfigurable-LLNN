@@ -20,12 +20,12 @@
     - **Host (PC):** Trains `difflogic` models in PyTorch → Exports `weights.json`/`weights.bin` + overlay HDL.
     - **PS (ARM):** Loads `overlay.bit`, reads `weights.bin`, writes truth tables to AXI.
     - **PL (FPGA):** Executes combinational inference using the current truth tables.
-3.  **AXI Address Map (16KB):**
-    - `0x0000–0x1FFF`: Gate programming (write `gate_id * 4` = 32-bit truth table)
-    - `0x2000`: STATUS (R) — bit 0 = cfg_busy
-    - `0x2004`: TOTAL_GATES (R)
-    - `0x3000–0x3030`: NET_I input registers (13 × 32-bit words)
-    - `0x3034`: NET_O output register (R) — lower 4 bits = classification
+3.  **AXI Address Map (64KB):**
+    - `0x0000–0x7FFF`: Gate programming (write `gate_id * 4` = 32-bit truth table, up to 8192 gates)
+    - `0x8000`: STATUS (R) — bit 0 = cfg_busy
+    - `0x8004`: TOTAL_GATES (R)
+    - `0x9000–0x9030`: NET_I input registers (13 × 32-bit words)
+    - `0x9034`: NET_O output register (R) — lower 4 bits = classification
 
 ---
 
@@ -100,4 +100,4 @@
 - `test_lut6.pth`: Exists but untested (likely larger LUT size).
 - The `venv/` directory contains PyTorch and dependencies. Always activate it before running Python scripts.
 - Board at `192.168.0.12` is reachable via ping. SSH works with password auth (`xilinx`/`xilinx`). No SSH key is set up.
-- `CFGLUT5` serial config is LSB-first, 32 cycles for LUT5, CE must be held high during shift.
+- `CFGLUT5` serial config is MSB-first (INIT[31] first, INIT[0] last), 32 cycles for LUT5, CE must be held high during shift. Both `SoftLUT5.sv` and `axi_lut_ctrl.sv` use left-shift (MSB-out) to match this spec.

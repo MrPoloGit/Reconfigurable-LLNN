@@ -1,21 +1,23 @@
 // -------------------------------------------------------------------------------------
 // axi_lut_ctrl.sv — AXI-Lite Slave for LLNN Overlay Configuration
 //
-// Address Map (active-low reset, active-high CE):
-//   0x0000–0x1FFF : Gate programming (write gate_id*4 = 32-bit truth table)
-//   0x2000        : STATUS   (R)  — bit 0 = cfg_busy
-//   0x2004        : GATE_CNT (R)  — total number of gates
-//   0x3000–0x3030 : NET_I input registers (13 × 32-bit words = 416 bits, 400 used)
-//   0x3034        : NET_O output register (R) — lower 4 bits = classification
+// Built from axi_lut_ctrl_hard.sv with gate programming added.
+//
+// Address Map (64KB):
+//   0x0000–0x7FFF : Gate programming (write gate_id*4 = 32-bit truth table, up to 8192)
+//   0x8000        : STATUS   (R)  — bit 0 = cfg_busy
+//   0x8004        : GATE_CNT (R)  — total number of gates
+//   0x9000+       : NET_I input registers (ceil(NET_INPUTS/32) × 32-bit words)
+//   0x9000+N*4    : NET_O output register (R) — lower bits = classification
 // -------------------------------------------------------------------------------------
 
 module axi_lut_ctrl #(
     parameter TOTAL_GATES = 1512,
     parameter NET_INPUTS = 400,
     parameter NET_OUTPUTS = 4,
-    parameter ADDR_W = 14,
+    parameter ADDR_W = 16,
     parameter DATA_W = 32,
-    parameter GATE_SEL_W = $clog2(TOTAL_GATES)
+    parameter GATE_SEL_W = (TOTAL_GATES > 1) ? $clog2(TOTAL_GATES) : 1
 ) (
     // Clock / Reset
     input logic S_AXI_ACLK,
@@ -59,32 +61,11 @@ module axi_lut_ctrl #(
 );
 
   // =========================================================================
-  //  Internal signals
+  //  Constants
   // =========================================================================
-  localparam NUM_INPUT_WORDS = (NET_INPUTS + 31) / 32;  // 13 for 400 bits
-
-  // AXI write latching
-  logic aw_ready_r, w_ready_r;
-  logic b_valid_r;
-  logic [ADDR_W-1:0] aw_addr_r;
-  logic aw_done, w_done;
-
-  // AXI read
-  logic ar_ready_r;
-  logic r_valid_r;
-  logic [DATA_W-1:0] r_data_r;
-  logic [ADDR_W-1:0] ar_addr_r;
-
-  // Config shift state machine
-  typedef enum logic [1:0] {
-    IDLE,
-    SHIFTING,
-    RESPOND
-  } cfg_state_t;
-  cfg_state_t cfg_state;
-  logic [DATA_W-1:0] shift_reg;
-  logic [5:0] bit_cnt; // 0..31
-  logic [GATE_SEL_W-1:0] gate_sel_r;
+  localparam NUM_INPUT_WORDS = (NET_INPUTS + 31) / 32;
+  localparam [ADDR_W-1:0] ADDR_INPUT_BASE = ADDR_W'(16'h9000);
+  localparam [ADDR_W-1:0] ADDR_OUTPUT     = ADDR_INPUT_BASE + ADDR_W'(NUM_INPUT_WORDS * 4);
 
   // Input register file
   logic [DATA_W-1:0] input_regs [NUM_INPUT_WORDS];
@@ -93,118 +74,128 @@ module axi_lut_ctrl #(
   genvar gi;
   generate
     for (gi = 0; gi < NUM_INPUT_WORDS; gi++) begin : pack_input
-      if ((gi + 1) * 32 <= NET_INPUTS) begin       // if not last word, assign all 32 bits
+      if ((gi + 1) * 32 <= NET_INPUTS) begin
         assign net_i[gi*32+:32] = input_regs[gi];
-      end else begin                               // if last word, assign only the remaining bits 
+      end else begin
         assign net_i[NET_INPUTS-1 : gi*32] = input_regs[gi][NET_INPUTS-1-gi*32:0];
       end
     end
   endgenerate
 
   // =========================================================================
-  //  AXI Write Address Channel
+  //  Config Shift FSM (the new thing vs axi_lut_ctrl_hard.sv)
   // =========================================================================
-  assign S_AXI_AWREADY = aw_ready_r;
-
-  always_ff @(posedge S_AXI_ACLK) begin
-    if (!S_AXI_ARESETN) begin
-      aw_ready_r <= 1'b0;
-      aw_done <= 1'b0;
-      aw_addr_r <= '0;
-    end else begin
-      if (!aw_done && S_AXI_AWVALID && (!w_done || S_AXI_WVALID) && cfg_state == IDLE) begin
-        aw_ready_r <= 1'b1;
-        aw_addr_r <= S_AXI_AWADDR;
-        aw_done <= 1'b1;
-      end else begin
-        aw_ready_r <= 1'b0;
-      end
-      if (S_AXI_BVALID && S_AXI_BREADY) begin
-        aw_done <= 1'b0;
-      end
-    end
-  end
-
-  // =========================================================================
-  //  AXI Write Data Channel
-  // =========================================================================
-  assign S_AXI_WREADY = w_ready_r;
-
-  always_ff @(posedge S_AXI_ACLK) begin
-    if (!S_AXI_ARESETN) begin
-      w_ready_r <= 1'b0;
-      w_done <= 1'b0;
-    end else begin
-      if (!w_done && S_AXI_WVALID && (!aw_done || S_AXI_AWVALID) && cfg_state == IDLE) begin
-        w_ready_r <= 1'b1;
-        w_done <= 1'b1;
-      end else begin
-        w_ready_r <= 1'b0;
-      end
-      if (S_AXI_BVALID && S_AXI_BREADY) begin
-        w_done <= 1'b0;
-      end
-    end
-  end
-
-  // =========================================================================
-  //  Write Decode + Config Shift State Machine
-  // =========================================================================
-  wire write_fire = aw_done && w_done;
-
-  // Determine write target region from latched address
-  wire addr_is_gate = (aw_addr_r < 14'h2000);
-  wire addr_is_input = (aw_addr_r >= 14'h3000) && (aw_addr_r < 14'h3034);
-
-  assign S_AXI_BRESP = 2'b00; // OKAY
-  assign S_AXI_BVALID = b_valid_r;
+  typedef enum logic [1:0] { IDLE, SHIFTING, RESPOND } cfg_state_t;
+  cfg_state_t cfg_state;
+  logic [DATA_W-1:0] shift_reg;
+  logic [5:0] bit_cnt;
+  logic [GATE_SEL_W-1:0] gate_sel_r;
 
   assign cfg_gate_sel = gate_sel_r;
-  assign cfg_data = shift_reg[0]; // LSB first (matches CFGLUT5)
-  assign cfg_ce = (cfg_state == SHIFTING);
+  assign cfg_data     = shift_reg[31];            // MSB first
+  assign cfg_ce       = (cfg_state == SHIFTING);
+
+  // =========================================================================
+  //  AXI-Lite Write Channel  (IDENTICAL pattern to axi_lut_ctrl_hard.sv)
+  //
+  //  Accepts AW and W independently (they may arrive on different cycles
+  //  from the Xilinx protocol converter). When both have been captured,
+  //  performs the write and issues B response.
+  // =========================================================================
+  logic s_axi_awready_reg = 1'b0;
+  logic s_axi_wready_reg  = 1'b0;
+  logic s_axi_bvalid_reg  = 1'b0;
+
+  logic aw_captured = 1'b0;
+  logic w_captured  = 1'b0;
+  logic [ADDR_W-1:0] aw_addr_latched;
+  logic [DATA_W-1:0] w_data_latched;
+
+  assign S_AXI_AWREADY = s_axi_awready_reg;
+  assign S_AXI_WREADY  = s_axi_wready_reg;
+  assign S_AXI_BRESP   = 2'b00;
+  assign S_AXI_BVALID  = s_axi_bvalid_reg;
+
+  // Address decode from latched address
+  wire wr_addr_is_gate  = (aw_addr_latched < ADDR_W'(16'h8000));
+  wire wr_addr_is_input = (aw_addr_latched >= ADDR_INPUT_BASE)
+                        && (aw_addr_latched <  ADDR_OUTPUT);
 
   always_ff @(posedge S_AXI_ACLK) begin
     if (!S_AXI_ARESETN) begin
-      cfg_state <= IDLE;
-      b_valid_r <= 1'b0;
-      bit_cnt <= '0;
-      shift_reg <= '0;
-      gate_sel_r <= '0;
+      s_axi_awready_reg <= 1'b0;
+      s_axi_wready_reg  <= 1'b0;
+      s_axi_bvalid_reg  <= 1'b0;
+      aw_captured        <= 1'b0;
+      w_captured         <= 1'b0;
+      cfg_state          <= IDLE;
+      bit_cnt            <= '0;
+      shift_reg          <= '0;
+      gate_sel_r         <= '0;
       for (int i = 0; i < NUM_INPUT_WORDS; i++) input_regs[i] <= '0;
     end else begin
+
+      // --- AW channel: accept address when offered and not already captured ---
+      if (S_AXI_AWVALID && !aw_captured) begin
+        s_axi_awready_reg <= 1'b1;
+        aw_addr_latched   <= S_AXI_AWADDR;
+        aw_captured       <= 1'b1;
+      end else begin
+        s_axi_awready_reg <= 1'b0;
+      end
+
+      // --- W channel: accept data when offered and not already captured ---
+      if (S_AXI_WVALID && !w_captured) begin
+        s_axi_wready_reg <= 1'b1;
+        w_data_latched   <= S_AXI_WDATA;
+        w_captured       <= 1'b1;
+      end else begin
+        s_axi_wready_reg <= 1'b0;
+      end
+
+      // --- B channel: clear response when master accepts ---
+      if (s_axi_bvalid_reg && S_AXI_BREADY) begin
+        s_axi_bvalid_reg <= 1'b0;
+      end
+
+      // --- Write execute + Config Shift FSM ---
       case (cfg_state)
         IDLE: begin
-          if (b_valid_r && S_AXI_BREADY) b_valid_r <= 1'b0;
-
-          if (write_fire && !b_valid_r) begin
-            if (addr_is_gate) begin
-              // Gate programming: start serial shift
-              gate_sel_r <= aw_addr_r[GATE_SEL_W+1:2]; // word-aligned
-              shift_reg <= S_AXI_WDATA;
-              bit_cnt <= '0;
-              cfg_state <= SHIFTING;
-            end else if (addr_is_input) begin
-              // Input register write
-              input_regs[(aw_addr_r-14'h3000)>>2] <= S_AXI_WDATA;
-              b_valid_r <= 1'b1;
+          // Both channels captured → perform write + issue B
+          if (aw_captured && w_captured && !s_axi_bvalid_reg) begin
+            if (wr_addr_is_gate) begin
+              // Gate programming → start 32-cycle serial shift
+              gate_sel_r       <= aw_addr_latched[GATE_SEL_W+1:2];
+              shift_reg        <= w_data_latched;
+              bit_cnt          <= '0;
+              cfg_state        <= SHIFTING;
+              // Clear capture flags so AW/W can accept next transaction
+              aw_captured      <= 1'b0;
+              w_captured       <= 1'b0;
+              // NOTE: s_axi_bvalid_reg NOT set here — delayed until RESPOND
             end else begin
-              // Other address — just ACK
-              b_valid_r <= 1'b1;
+              // Input register or unmapped → immediate BVALID
+              if (wr_addr_is_input) begin
+                input_regs[(aw_addr_latched - ADDR_INPUT_BASE) >> 2] <= w_data_latched;
+              end
+              s_axi_bvalid_reg <= 1'b1;
+              aw_captured      <= 1'b0;
+              w_captured       <= 1'b0;
             end
           end
         end
 
         SHIFTING: begin
-          shift_reg <= {1'b0, shift_reg[DATA_W-1:1]}; // right shift (LSB out)
-          bit_cnt <= bit_cnt + 1'b1;
+          shift_reg <= {shift_reg[DATA_W-2:0], 1'b0};  // left shift, MSB out
+          bit_cnt   <= bit_cnt + 1'b1;
           if (bit_cnt == 6'd31) begin
             cfg_state <= RESPOND;
           end
         end
 
         RESPOND: begin
-          b_valid_r <= 1'b1;
-          cfg_state <= IDLE;
+          s_axi_bvalid_reg <= 1'b1;
+          cfg_state        <= IDLE;
         end
 
         default: cfg_state <= IDLE;
@@ -213,37 +204,57 @@ module axi_lut_ctrl #(
   end
 
   // =========================================================================
-  //  AXI Read Channel
+  //  AXI-Lite Read Channel  (IDENTICAL to axi_lut_ctrl_hard.sv, plus
+  //  STATUS and GATE_COUNT registers)
   // =========================================================================
-  assign S_AXI_ARREADY = ar_ready_r;
-  assign S_AXI_RVALID = r_valid_r;
-  assign S_AXI_RDATA = r_data_r;
-  assign S_AXI_RRESP = 2'b00;
+  logic s_axi_arready_reg = 1'b0, s_axi_arready_next;
+  logic s_axi_rvalid_reg  = 1'b0, s_axi_rvalid_next;
+  logic [DATA_W-1:0] s_axi_rdata_reg = '0;
+  logic mem_rd_en;
+
+  assign S_AXI_ARREADY = s_axi_arready_reg;
+  assign S_AXI_RVALID  = s_axi_rvalid_reg;
+  assign S_AXI_RDATA   = s_axi_rdata_reg;
+  assign S_AXI_RRESP   = 2'b00;
+
+  always_comb begin
+    mem_rd_en = 1'b0;
+    s_axi_arready_next = 1'b0;
+    s_axi_rvalid_next  = s_axi_rvalid_reg && !S_AXI_RREADY;
+
+    if (S_AXI_ARVALID
+        && (!S_AXI_RVALID || S_AXI_RREADY)
+        && (!s_axi_arready_reg)) begin
+      s_axi_arready_next = 1'b1;
+      s_axi_rvalid_next  = 1'b1;
+      mem_rd_en           = 1'b1;
+    end
+  end
 
   always_ff @(posedge S_AXI_ACLK) begin
-    if (!S_AXI_ARESETN) begin
-      ar_ready_r <= 1'b0;
-      r_valid_r <= 1'b0;
-      r_data_r <= '0;
-    end else begin
-      if (S_AXI_ARVALID && !r_valid_r && !ar_ready_r) begin
-        ar_ready_r <= 1'b1;
-        ar_addr_r <= S_AXI_ARADDR;
+    s_axi_arready_reg <= s_axi_arready_next;
+    s_axi_rvalid_reg  <= s_axi_rvalid_next;
+
+    if (mem_rd_en) begin
+      if (S_AXI_ARADDR == ADDR_W'(16'h8000)) begin
+        // STATUS: bit 0 = cfg_busy
+        s_axi_rdata_reg <= {31'b0, (cfg_state != IDLE)};
+      end else if (S_AXI_ARADDR == ADDR_W'(16'h8004)) begin
+        // GATE_COUNT
+        s_axi_rdata_reg <= TOTAL_GATES;
+      end else if (S_AXI_ARADDR >= ADDR_INPUT_BASE && S_AXI_ARADDR < ADDR_OUTPUT) begin
+        s_axi_rdata_reg <= input_regs[(S_AXI_ARADDR - ADDR_INPUT_BASE) >> 2];
+      end else if (S_AXI_ARADDR == ADDR_OUTPUT) begin
+        s_axi_rdata_reg <= {{(DATA_W - NET_OUTPUTS){1'b0}}, net_o};
       end else begin
-        ar_ready_r <= 1'b0;
+        s_axi_rdata_reg <= 32'hDEAD_BEEF;
       end
+    end
 
-      if (ar_ready_r) begin
-        r_valid_r <= 1'b1;
-        case (ar_addr_r)
-          14'h2000: r_data_r <= {31'b0, (cfg_state != IDLE)}; // STATUS
-          14'h2004: r_data_r <= TOTAL_GATES; // GATE_CNT
-          14'h3034: r_data_r <= {{(DATA_W - NET_OUTPUTS) {1'b0}}, net_o}; // NET_O
-          default: r_data_r <= 32'hDEAD_BEEF;
-        endcase
-      end
-
-      if (r_valid_r && S_AXI_RREADY) r_valid_r <= 1'b0;
+    if (!S_AXI_ARESETN) begin
+      s_axi_arready_reg <= 1'b0;
+      s_axi_rvalid_reg  <= 1'b0;
+      s_axi_rdata_reg   <= '0;
     end
   end
 
