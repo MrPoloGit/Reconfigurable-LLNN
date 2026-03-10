@@ -25,3 +25,4 @@ boards/
 constraints/
 NA/
 .nfs*
+sim.out

@@ -254,8 +254,19 @@ SOURCES := $(MODEL_SV_SOURCES) $(OVERLAY_SV_SOURCES) $(OVERLAY_V_SOURCES)
 # sv2v conversion
 # -----------------------------------------------------------------------------
 SV2V_DIR   := data/verilog/$(MODEL)
-SV2V_INPUT := $(filter-out $(SV_DIR)/Globals.sv,$(MODEL_SV_SOURCES))
+SV2V_INPUT := $(filter-out $(SV_DIR)/Globals.sv,$(MODEL_SV_SOURCES) $(OVERLAY_SV_SOURCES))
 SV2V_FILES := $(patsubst $(SV_DIR)/%.sv,$(SV2V_DIR)/%.v,$(SV2V_INPUT))
+
+# -----------------------------------------------------------------------------
+# Verilog sources produced by sv2v
+# -----------------------------------------------------------------------------
+# VERILOG_DIR     := data/verilog/$(MODEL)
+# VERILOG_SOURCES := $(sort $(wildcard $(VERILOG_DIR)/*.v))
+# VERILOG_SOURCES := \
+# 	data/verilog/model1/SoftLUT5.v \
+# 	data/verilog/model1/softlut5_test_wrapper.v \
+# 	data/verilog/model1/axi_lut_ctrl.v \
+# 	data/verilog/model1/CFGLUT5.v
 
 JOBS ?= 4
 
@@ -313,6 +324,15 @@ sv2v:
 		sv2v "$(SV_DIR)/Globals.sv" "$$f" > "$(SV2V_DIR)/$$base.v"; \
 	done
 
+# yosys:
+# 	@echo "Running Yosys synthesis for model: $(MODEL)"
+# 	yosys -p 'read_verilog $(VERILOG_SOURCES); hierarchy -check -top softlut5_test_wrapper; proc; opt; write_verilog build/$(MODEL)/yosys_netlist.v; stat'
+
+yosys:
+	@echo "Running Yosys synthesis for model: $(MODEL)"
+	mkdir -p build/$(MODEL)
+	yosys -p 'read_verilog $(shell cat rtl.f); hierarchy -check -top softlut5_test_wrapper; proc; opt; write_verilog build/$(MODEL)/yosys_netlist.v; stat'
+	
 project:
 	@echo "Creating Vivado project for model: $(MODEL)"
 	@mkdir -p "$(BUILD_DIR)"

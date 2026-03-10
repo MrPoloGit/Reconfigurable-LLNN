@@ -90,8 +90,7 @@ module softlut5_test_wrapper (
 
     logic cfg_out_unused;
 
-    (* dont_touch = "true" *)
-    SoftLUT5 u_lut (
+    (* DONT_TOUCH = "yes" *) SoftLUT5 u_lut (
         .clk      (clk),
         .lut_in   (net_i),
         .lut_out  (net_o[0]),
@@ -101,3 +100,100 @@ module softlut5_test_wrapper (
     );
 
 endmodule
+
+
+// module softlut5_test_wrapper (
+//     input  logic        clk,
+//     input  logic        rst_n,
+
+//     // AXI-Lite slave
+//     input  logic [15:0] S_AXI_AWADDR,
+//     input  logic        S_AXI_AWVALID,
+//     output logic        S_AXI_AWREADY,
+//     input  logic [31:0] S_AXI_WDATA,
+//     input  logic [3:0]  S_AXI_WSTRB,
+//     input  logic        S_AXI_WVALID,
+//     output logic        S_AXI_WREADY,
+//     output logic [1:0]  S_AXI_BRESP,
+//     output logic        S_AXI_BVALID,
+//     input  logic        S_AXI_BREADY,
+//     input  logic [15:0] S_AXI_ARADDR,
+//     input  logic        S_AXI_ARVALID,
+//     output logic        S_AXI_ARREADY,
+//     output logic [31:0] S_AXI_RDATA,
+//     output logic [1:0]  S_AXI_RRESP,
+//     output logic        S_AXI_RVALID,
+//     input  logic        S_AXI_RREADY
+// );
+
+//     // ─────────────────────────────────────────────
+//     // LUT inputs / outputs
+//     // ─────────────────────────────────────────────
+//     logic [4:0] net_i;
+//     logic [0:0] net_o;
+
+//     // ─────────────────────────────────────────────
+//     // Config registers
+//     // ─────────────────────────────────────────────
+//     logic [31:0] cfg_shift_reg;
+//     logic [5:0]  cfg_count;
+//     logic        cfg_busy;
+
+//     logic cfg_ce;
+//     logic cfg_data;
+
+//     // ─────────────────────────────────────────────
+//     // AXI registers
+//     // ─────────────────────────────────────────────
+
+//     logic write_truth;
+
+//     assign write_truth = (S_AXI_AWVALID && S_AXI_WVALID &&
+//                          (S_AXI_AWADDR[15:0] == 16'h0000));
+
+//     always_ff @(posedge clk) begin
+//         if (!rst_n) begin
+//             cfg_shift_reg <= 0;
+//             cfg_count <= 0;
+//             cfg_busy <= 0;
+//         end
+//         else begin
+
+//             // Start shifting when PS writes truth table
+//             if (write_truth && !cfg_busy) begin
+//                 cfg_shift_reg <= S_AXI_WDATA;
+//                 cfg_count <= 6'd32;
+//                 cfg_busy <= 1;
+//             end
+
+//             // Shift operation
+//             else if (cfg_busy) begin
+//                 cfg_shift_reg <= {cfg_shift_reg[30:0],1'b0};
+//                 cfg_count <= cfg_count - 1;
+
+//                 if (cfg_count == 1)
+//                     cfg_busy <= 0;
+//             end
+//         end
+//     end
+
+//     assign cfg_ce   = cfg_busy;
+//     assign cfg_data = cfg_shift_reg[31];  // MSB first
+
+//     // ─────────────────────────────────────────────
+//     // LUT instance
+//     // ─────────────────────────────────────────────
+
+//     logic cfg_out_unused;
+
+//     (* dont_touch = "true" *)
+//     SoftLUT5 u_lut (
+//         .clk      (clk),
+//         .lut_in   (net_i),
+//         .lut_out  (net_o[0]),
+//         .cfg_ce   (cfg_ce),
+//         .cfg_data (cfg_data),
+//         .cfg_out  (cfg_out_unused)
+//     );
+
+// endmodule

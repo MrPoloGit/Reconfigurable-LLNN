@@ -9,7 +9,6 @@
 //   - cfg_out carries the displaced bit (for optional daisy-chaining)
 // -------------------------------------------------------------------------------------
 
-(* dont_touch = "true", keep_hierarchy = "yes" *)
 module SoftLUT5 (
     input logic clk,
 
@@ -24,8 +23,7 @@ module SoftLUT5 (
 );
 
   // Prevent Vivado from optimizing away the reconfigurable LUT
-  (* dont_touch = "true" *)
-  CFGLUT5 #(
+  (* DONT_TOUCH = "yes" *) CFGLUT5 #(
       .INIT(32'hDEAD_BEEF)  // Helps identify if it was never overwritten by PS
   ) cfglut_inst (
       .O5 (),           // LUT4 output (unused - we use O6 for full LUT5)
