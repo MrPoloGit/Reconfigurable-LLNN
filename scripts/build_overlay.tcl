@@ -52,6 +52,37 @@ puts "Jobs        : $jobs"
 puts "============================================="
 
 # -----------------------------------------------------------------------------
+# Helper procs
+# -----------------------------------------------------------------------------
+
+proc append_if_exists {var_name path} {
+    upvar 1 $var_name dst
+    if {[file exists $path]} {
+        lappend dst $path
+    } else {
+        puts "WARNING: expected source not found: $path"
+    }
+}
+
+proc connect_bd_pin_if_needed {src_pin_name dst_pin_name} {
+    set src_pin [get_bd_pins -quiet $src_pin_name]
+    set dst_pin [get_bd_pins -quiet $dst_pin_name]
+
+    if {[llength $src_pin] == 0 || [llength $dst_pin] == 0} {
+        return
+    }
+
+    # If the source pin is already on a net, avoid re-connecting.
+    set src_nets [get_bd_nets -quiet -of_objects $src_pin]
+    if {[llength $src_nets] > 0} {
+        puts "Skipping reset connect: $src_pin_name already connected."
+        return
+    }
+
+    connect_bd_net $src_pin $dst_pin
+}
+
+# -----------------------------------------------------------------------------
 # Register board repository
 # -----------------------------------------------------------------------------
 
@@ -77,8 +108,29 @@ if {[catch {set_property board_part $board_part [current_project]} err]} {
 # Collect sources
 # -----------------------------------------------------------------------------
 
-set overlay_v  [lsort [glob -nocomplain ${overlay_dir}/*.v]]
-set overlay_sv [lsort [glob -nocomplain ${overlay_dir}/*.sv]]
+set model_dir_norm [string map {\\ /} $model_dir]
+set is_reconfig 0
+if {$model_dir_norm ne "" && [string match "*/data/overlay/*" $model_dir_norm]} {
+    set is_reconfig 1
+}
+
+set overlay_v {}
+set overlay_sv {}
+
+if {$is_reconfig} {
+    puts "Build flow  : reconfigurable"
+    append_if_exists overlay_v  [file join $overlay_dir "llnn_wrapper_bd.v"]
+    append_if_exists overlay_sv [file join $overlay_dir "llnn_wrapper.sv"]
+    append_if_exists overlay_sv [file join $overlay_dir "axi_lut_ctrl.sv"]
+    append_if_exists overlay_sv [file join $overlay_dir "SoftLUT5.sv"]
+    # Optional primitive variant (not instantiated by default)
+    append_if_exists overlay_sv [file join $overlay_dir "SoftLUT5_primitive.sv"]
+} else {
+    puts "Build flow  : static/hard"
+    append_if_exists overlay_v  [file join $overlay_dir "llnn_wrapper_hard_bd.v"]
+    append_if_exists overlay_sv [file join $overlay_dir "llnn_wrapper_hard.sv"]
+    append_if_exists overlay_sv [file join $overlay_dir "axi_lut_ctrl_hard.sv"]
+}
 
 set model_sv {}
 if {$model_dir ne ""} {
@@ -148,8 +200,12 @@ update_compile_order -fileset sources_1
 
 create_bd_design $bd_name
 
-create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.5 processing_system7_0
-create_bd_cell -type module -reference $module_ref $instance
+if {[llength [get_bd_cells -quiet processing_system7_0]] == 0} {
+    create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.5 processing_system7_0
+}
+if {[llength [get_bd_cells -quiet $instance]] == 0} {
+    create_bd_cell -type module -reference $module_ref $instance
+}
 
 apply_bd_automation -rule xilinx.com:bd_rule:processing_system7 \
     -config {make_external "FIXED_IO, DDR" apply_board_preset "1" Master "Disable" Slave "Disable"} \
@@ -166,13 +222,7 @@ apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config {
     master_apm {0}
 } [get_bd_intf_pins ${instance}/S_AXI]
 
-if {[llength [get_bd_pins -quiet ${instance}/rst_n]] > 0} {
-    if {[llength [get_bd_pins -quiet rst_ps7_0_100M/peripheral_aresetn]] > 0} {
-        connect_bd_net \
-            [get_bd_pins ${instance}/rst_n] \
-            [get_bd_pins rst_ps7_0_100M/peripheral_aresetn]
-    }
-}
+connect_bd_pin_if_needed "${instance}/rst_n" "rst_ps7_0_100M/peripheral_aresetn"
 
 validate_bd_design
 save_bd_design
@@ -180,10 +230,14 @@ save_bd_design
 generate_target all [get_files ${bd_name}.bd]
 
 startgroup
-create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.5 processing_system7_0
+if {[llength [get_bd_cells -quiet processing_system7_0]] == 0} {
+    create_bd_cell -type ip -vlnv xilinx.com:ip:processing_system7:5.5 processing_system7_0
+}
 endgroup
 
-create_bd_cell -type module -reference $module_ref $instance
+if {[llength [get_bd_cells -quiet $instance]] == 0} {
+    create_bd_cell -type module -reference $module_ref $instance
+}
 
 # -----------------------------------------------------------------------------
 # Add model and overlay RTL to the module-reference synth run
@@ -231,13 +285,7 @@ apply_bd_automation -rule xilinx.com:bd_rule:axi4 \
     [get_bd_intf_pins ${instance}/S_AXI]
 
 # Connect active-low reset exactly like the working reference
-if {[llength [get_bd_pins -quiet ${instance}/rst_n]] > 0} {
-    if {[llength [get_bd_pins -quiet rst_ps7_0_100M/peripheral_aresetn]] > 0} {
-        connect_bd_net \
-            [get_bd_pins ${instance}/rst_n] \
-            [get_bd_pins rst_ps7_0_100M/peripheral_aresetn]
-    }
-}
+connect_bd_pin_if_needed "${instance}/rst_n" "rst_ps7_0_100M/peripheral_aresetn"
 
 # Set address range
 set addr_segs [get_bd_addr_segs -quiet "processing_system7_0/Data/SEG_${instance}_*"]
