@@ -268,6 +268,11 @@ SV2V_FILES := $(patsubst $(SV_DIR)/%.sv,$(SV2V_DIR)/%.v,$(SV2V_INPUT))
 # 	data/verilog/model1/axi_lut_ctrl.v \
 # 	data/verilog/model1/CFGLUT5.v
 
+VERILOG_SOURCES := \
+	data/verilog/$(MODEL)/SoftLUT5.v \
+	data/verilog/$(MODEL)/softlut5_test_wrapper.v \
+	data/verilog/$(MODEL)/axi_lut_ctrl.v
+
 JOBS ?= 4
 
 .PHONY: help print-sources sv2v project design open build build_overlay clean
@@ -324,15 +329,14 @@ sv2v:
 		sv2v "$(SV_DIR)/Globals.sv" "$$f" > "$(SV2V_DIR)/$$base.v"; \
 	done
 
-# yosys:
-# 	@echo "Running Yosys synthesis for model: $(MODEL)"
-# 	yosys -p 'read_verilog $(VERILOG_SOURCES); hierarchy -check -top softlut5_test_wrapper; proc; opt; write_verilog build/$(MODEL)/yosys_netlist.v; stat'
-
 yosys:
 	@echo "Running Yosys synthesis for model: $(MODEL)"
-	mkdir -p build/$(MODEL)
-	yosys -p 'read_verilog $(shell cat rtl.f); hierarchy -check -top softlut5_test_wrapper; proc; opt; write_verilog build/$(MODEL)/yosys_netlist.v; stat'
-	
+	yosys -p 'read_verilog $(VERILOG_SOURCES); read_verilog -lib +/xilinx/cells_sim.v; hierarchy -check -top softlut5_test_wrapper; proc; opt; write_verilog yosys_netlist.v; stat'
+
+# yosys:
+# 	@echo "Running Yosys synthesis"
+# 	yosys -p 'read_verilog $(shell cat rtl.f); read_verilog -lib +/xilinx/cells_sim.v; hierarchy -check -top softlut5_test_wrapper; proc; opt; write_verilog yosys_netlist.v; stat'
+
 project:
 	@echo "Creating Vivado project for model: $(MODEL)"
 	@mkdir -p "$(BUILD_DIR)"

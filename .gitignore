@@ -26,3 +26,5 @@ constraints/
 NA/
 .nfs*
 sim.out
+*.sv
+*.v
