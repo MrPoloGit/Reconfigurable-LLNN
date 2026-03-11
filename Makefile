@@ -1,160 +1,168 @@
-# WINDOWS 11 (WSL calling Windows Vivado)
-# =============================================================================
-# Vivado FPGA Build System
-# =============================================================================
+# # WINDOWS 11 (WSL calling Windows Vivado)
+# # =============================================================================
+# # Vivado FPGA Build System
+# # =============================================================================
 
-MODEL ?= model1
-PART  := xc7z020clg400-1
-TOP   := top
-PROJECT_NAME := $(TOP)
-VIVADO_VERSION := 2025.2
+# MODEL ?= model1
+# PART  := xc7z020clg400-1
+# TOP   := top
+# PROJECT_NAME := $(TOP)
+# VIVADO_VERSION := 2025.2
 
-BUILD_DIR   := build/$(MODEL)
-SV_DIR      := data/sv/$(MODEL)
-OVERLAY_DIR := hdl/overlay
-BOARD_REPO  := boards
+# BUILD_DIR   := build/$(MODEL)
+# SV_DIR      := data/sv/$(MODEL)
+# OVERLAY_DIR := hdl/overlay
+# BOARD_REPO  := boards
 
-# Vivado executable on Windows (supports AMDDesignTools and legacy Xilinx paths)
-VIVADO_XILINX := C:\\Xilinx\\Vivado\\$(VIVADO_VERSION)\\bin\\vivado.bat
-VIVADO_AMD    := C:\\AMDDesignTools\\$(VIVADO_VERSION)\\Vivado\\bin\\vivado.bat
-VIVADO_BAT    := $(shell cmd.exe /c "if exist $(VIVADO_AMD) (echo $(VIVADO_AMD)) else if exist $(VIVADO_XILINX) (echo $(VIVADO_XILINX))")
-VIVADO        := cmd.exe /c "$(VIVADO_BAT)"
+# # Vivado executable on Windows (supports AMDDesignTools and legacy Xilinx paths)
+# VIVADO_XILINX := C:\\Xilinx\\Vivado\\$(VIVADO_VERSION)\\bin\\vivado.bat
+# VIVADO_AMD    := C:\\AMDDesignTools\\$(VIVADO_VERSION)\\Vivado\\bin\\vivado.bat
+# VIVADO_BAT    := $(shell cmd.exe /c "if exist $(VIVADO_AMD) (echo $(VIVADO_AMD)) else if exist $(VIVADO_XILINX) (echo $(VIVADO_XILINX))")
+# VIVADO        := cmd.exe /c "$(VIVADO_BAT)"
 
-CLK_FREQ_MHZ ?= 10
+# CLK_FREQ_MHZ ?= 10
 
-# -----------------------------------------------------------------------------
-# Source collection
-# -----------------------------------------------------------------------------
-MODEL_SV_SOURCES    := $(sort $(wildcard $(SV_DIR)/*.sv))
-OVERLAY_SV_SOURCES  := $(sort $(wildcard $(OVERLAY_DIR)/*.sv))
-OVERLAY_V_SOURCES   := $(sort $(wildcard $(OVERLAY_DIR)/*.v))
+# # -----------------------------------------------------------------------------
+# # Source collection
+# # -----------------------------------------------------------------------------
+# MODEL_SV_SOURCES    := $(sort $(wildcard $(SV_DIR)/*.sv))
+# OVERLAY_SV_SOURCES  := $(sort $(wildcard $(OVERLAY_DIR)/*.sv))
+# OVERLAY_V_SOURCES   := $(sort $(wildcard $(OVERLAY_DIR)/*.v))
 
-# Complete source list passed into Tcl
-SOURCES := $(MODEL_SV_SOURCES) $(OVERLAY_SV_SOURCES) $(OVERLAY_V_SOURCES)
-SOURCES_WIN := $(shell for f in $(SOURCES); do wslpath -m "$$f"; done)
-BUILD_WIN := $(shell wslpath -m "$(BUILD_DIR)")
-BOARD_REPO_WIN := $(shell wslpath -m "$(BOARD_REPO)")
+# # Complete source list passed into Tcl
+# SOURCES := $(MODEL_SV_SOURCES) $(OVERLAY_SV_SOURCES) $(OVERLAY_V_SOURCES)
+# SOURCES_WIN := $(shell for f in $(SOURCES); do wslpath -m "$$f"; done)
+# BUILD_WIN := $(shell wslpath -m "$(BUILD_DIR)")
+# BOARD_REPO_WIN := $(shell wslpath -m "$(BOARD_REPO)")
 
-# -----------------------------------------------------------------------------
-# sv2v conversion
-# -----------------------------------------------------------------------------
-SV2V_DIR   := data/verilog/$(MODEL)
-SV2V_INPUT := $(filter-out $(SV_DIR)/Globals.sv,$(MODEL_SV_SOURCES))
-SV2V_FILES := $(patsubst $(SV_DIR)/%.sv,$(SV2V_DIR)/%.v,$(SV2V_INPUT))
+# # -----------------------------------------------------------------------------
+# # sv2v conversion
+# # -----------------------------------------------------------------------------
+# SV2V_DIR   := data/verilog/$(MODEL)
+# SV2V_INPUT := $(filter-out $(SV_DIR)/Globals.sv,$(MODEL_SV_SOURCES))
+# SV2V_FILES := $(patsubst $(SV_DIR)/%.sv,$(SV2V_DIR)/%.v,$(SV2V_INPUT))
 
-JOBS ?= 12
+# JOBS ?= 12
 
-.PHONY: help print-sources sv2v project design open build build_overlay build_reconfig clean
+# .PHONY: help print-sources sv2v project design open build build_overlay build_reconfig clean
 
-help:
-	@echo ""
-	@echo "Vivado FPGA Build System"
-	@echo "========================"
-	@echo ""
-	@echo "Targets:"
-	@echo ""
-	@echo "  make print-sources [MODEL=modelX]"
-	@echo "      Print the complete resolved source list."
-	@echo ""
-	@echo "  make sv2v [MODEL=modelX]"
-	@echo "      Convert SystemVerilog to Verilog using sv2v."
-	@echo ""
-	@echo "  make project [MODEL=modelX]"
-	@echo "      Create Vivado project and add all sources."
-	@echo ""
-	@echo "  make design [MODEL=modelX]"
-	@echo "      Create Vivado project + block design flow."
-	@echo ""
-	@echo "  make open [MODEL=modelX]"
-	@echo "      Open the Vivado GUI."
-	@echo ""
-	@echo "  make build [MODEL=modelX]"
-	@echo "      Run synthesis + implementation."
-	@echo ""
-	@echo "  make build_overlay [MODEL=modelX]"
-	@echo "      Run overlay build flow."
-	@echo ""
-	@echo "  make clean [MODEL=modelX]"
-	@echo "      Delete a specific model project, or all build outputs."
-	@echo ""
+# help:
+# 	@echo ""
+# 	@echo "Vivado FPGA Build System"
+# 	@echo "========================"
+# 	@echo ""
+# 	@echo "Targets:"
+# 	@echo ""
+# 	@echo "  make print-sources [MODEL=modelX]"
+# 	@echo "      Print the complete resolved source list."
+# 	@echo ""
+# 	@echo "  make sv2v [MODEL=modelX]"
+# 	@echo "      Convert SystemVerilog to Verilog using sv2v."
+# 	@echo ""
+# 	@echo "  make project [MODEL=modelX]"
+# 	@echo "      Create Vivado project and add all sources."
+# 	@echo ""
+# 	@echo "  make design [MODEL=modelX]"
+# 	@echo "      Create Vivado project + block design flow."
+# 	@echo ""
+# 	@echo "  make open [MODEL=modelX]"
+# 	@echo "      Open the Vivado GUI."
+# 	@echo ""
+# 	@echo "  make build [MODEL=modelX]"
+# 	@echo "      Run synthesis + implementation."
+# 	@echo ""
+# 	@echo "  make build_overlay [MODEL=modelX]"
+# 	@echo "      Run overlay build flow."
+# 	@echo ""
+# 	@echo "  make clean [MODEL=modelX]"
+# 	@echo "      Delete a specific model project, or all build outputs."
+# 	@echo ""
 
-print-sources:
-	@echo "MODEL               = $(MODEL)"
-	@echo "TOP                 = $(TOP)"
-	@echo "PROJECT_NAME        = $(PROJECT_NAME)"
-	@echo "BUILD_DIR           = $(BUILD_DIR)"
-	@echo "SV_DIR              = $(SV_DIR)"
-	@echo "OVERLAY_DIR         = $(OVERLAY_DIR)"
-	@echo ""
-	@echo "Complete SOURCES:"
-	@for f in $(SOURCES); do echo "  $$f"; done
+# print-sources:
+# 	@echo "MODEL               = $(MODEL)"
+# 	@echo "TOP                 = $(TOP)"
+# 	@echo "PROJECT_NAME        = $(PROJECT_NAME)"
+# 	@echo "BUILD_DIR           = $(BUILD_DIR)"
+# 	@echo "SV_DIR              = $(SV_DIR)"
+# 	@echo "OVERLAY_DIR         = $(OVERLAY_DIR)"
+# 	@echo ""
+# 	@echo "Complete SOURCES:"
+# 	@for f in $(SOURCES); do echo "  $$f"; done
 
-sv2v:
-	@echo "Converting SystemVerilog -> Verilog for model: $(MODEL)"
-	@mkdir -p "$(SV2V_DIR)"
-	@for f in $(SV2V_INPUT); do \
-		base=$$(basename $$f .sv); \
-		echo "  $$base.sv -> $$base.v"; \
-		sv2v "$(SV_DIR)/Globals.sv" "$$f" > "$(SV2V_DIR)/$$base.v"; \
-	done
+# sv2v:
+# 	@echo "Converting SystemVerilog -> Verilog for model: $(MODEL)"
+# 	@mkdir -p "$(SV2V_DIR)"
+# 	@for f in $(SV2V_INPUT); do \
+# 		base=$$(basename $$f .sv); \
+# 		echo "  $$base.sv -> $$base.v"; \
+# 		sv2v "$(SV_DIR)/Globals.sv" "$$f" > "$(SV2V_DIR)/$$base.v"; \
+# 	done
 
-project:
-	@echo "Creating Vivado project for model: $(MODEL)"
-	@mkdir -p "$(BUILD_DIR)"
-	@if [ -z "$(strip $(SOURCES))" ]; then \
-		echo "Error: no sources found."; \
-		exit 1; \
-	fi
-	$(VIVADO) -mode batch -source scripts/project.tcl \
-		-tclargs "$(TOP)" "$(PART)" "$(BUILD_WIN)" "$(BOARD_REPO_WIN)" $(SOURCES_WIN)
+# project:
+# 	@echo "Creating Vivado project for model: $(MODEL)"
+# 	@mkdir -p "$(BUILD_DIR)"
+# 	@if [ -z "$(strip $(SOURCES))" ]; then \
+# 		echo "Error: no sources found."; \
+# 		exit 1; \
+# 	fi
+# 	$(VIVADO) -mode batch -source scripts/project.tcl \
+# 		-tclargs "$(TOP)" "$(PART)" "$(BUILD_WIN)" "$(BOARD_REPO_WIN)" $(SOURCES_WIN)
 
-design:
-	@echo "Creating Vivado project + block design for model: $(MODEL)"
-	@mkdir -p "$(BUILD_DIR)"
-	@if [ -z "$(strip $(SOURCES))" ]; then \
-		echo "Error: no sources found."; \
-		exit 1; \
-	fi
-	$(VIVADO) -mode batch -source scripts/create_design.tcl \
-		-tclargs "$(TOP)" "$(PART)" "$(BUILD_WIN)" "$(BOARD_REPO_WIN)" "$(CLK_FREQ_MHZ)" $(SOURCES_WIN)
+# design:
+# 	@echo "Creating Vivado project + block design for model: $(MODEL)"
+# 	@mkdir -p "$(BUILD_DIR)"
+# 	@if [ -z "$(strip $(SOURCES))" ]; then \
+# 		echo "Error: no sources found."; \
+# 		exit 1; \
+# 	fi
+# 	$(VIVADO) -mode batch -source scripts/create_design.tcl \
+# 		-tclargs "$(TOP)" "$(PART)" "$(BUILD_WIN)" "$(BOARD_REPO_WIN)" "$(CLK_FREQ_MHZ)" $(SOURCES_WIN)
 
-open:
-	@if [ ! -f "$(BUILD_DIR)/$(PROJECT_NAME).xpr" ]; then \
-		echo "Error: Vivado project not found."; \
-		echo "Expected: $(BUILD_DIR)/$(PROJECT_NAME).xpr"; \
-		echo "Run 'make project MODEL=$(MODEL)' first."; \
-		exit 1; \
-	fi
-	$(VIVADO) "$(BUILD_WIN)/$(PROJECT_NAME).xpr"
+# open:
+# 	@if [ ! -f "$(BUILD_DIR)/$(PROJECT_NAME).xpr" ]; then \
+# 		echo "Error: Vivado project not found."; \
+# 		echo "Expected: $(BUILD_DIR)/$(PROJECT_NAME).xpr"; \
+# 		echo "Run 'make project MODEL=$(MODEL)' first."; \
+# 		exit 1; \
+# 	fi
+# 	$(VIVADO) "$(BUILD_WIN)/$(PROJECT_NAME).xpr"
 
-build:
-	@echo "Building model: $(MODEL)"
-	@if [ ! -f "$(BUILD_DIR)/$(PROJECT_NAME).xpr" ]; then \
-		echo "Error: Vivado project not found."; \
-		echo "Expected: $(BUILD_DIR)/$(PROJECT_NAME).xpr"; \
-		echo "Run 'make project MODEL=$(MODEL)' first."; \
-		exit 1; \
-	fi
-	$(VIVADO) -mode batch -source scripts/build.tcl \
-		-tclargs "$(TOP)" "$(BUILD_WIN)"
+# build:
+# 	@echo "Building model: $(MODEL)"
+# 	@if [ ! -f "$(BUILD_DIR)/$(PROJECT_NAME).xpr" ]; then \
+# 		echo "Error: Vivado project not found."; \
+# 		echo "Expected: $(BUILD_DIR)/$(PROJECT_NAME).xpr"; \
+# 		echo "Run 'make project MODEL=$(MODEL)' first."; \
+# 		exit 1; \
+# 	fi
+# 	$(VIVADO) -mode batch -source scripts/build.tcl \
+# 		-tclargs "$(TOP)" "$(BUILD_WIN)"
 
-build_overlay:
-	@echo "Building LLNN overlay (PYNQ-Z2) — static"
-	$(VIVADO) -mode batch -source scripts/build_overlay.tcl \
-		-tclargs "$(OVERLAY_DIR)" "$(BUILD_DIR)/overlay" "llnn_bd" "$(JOBS)" "$(SV_DIR)"
+# build_overlay:
+# 	@echo "Building LLNN overlay (PYNQ-Z2) — static"
+# 	$(VIVADO) -mode batch -source scripts/build_overlay.tcl \
+# 		-tclargs "$(OVERLAY_DIR)" "$(BUILD_DIR)/overlay" "llnn_bd" "$(JOBS)" "$(SV_DIR)"
 
-build_reconfig:
-	@echo "Building reconfigurable LLNN overlay (PYNQ-Z2)"
-	@test -d data/overlay/$(MODEL) || (echo "ERROR: data/overlay/$(MODEL) not found. Run: python hdl/generate_overlay.py --model $(MODEL)"; exit 1)
-	$(VIVADO) -mode batch -source scripts/build_overlay.tcl \
-		-tclargs "$(OVERLAY_DIR)" "$(BUILD_DIR)/reconfig" "llnn_bd" "$(JOBS)" "data/overlay/$(MODEL)"
+# build_reconfig:
+# 	@echo "Building reconfigurable LLNN overlay (PYNQ-Z2)"
+# 	@test -d data/overlay/$(MODEL) || (echo "ERROR: data/overlay/$(MODEL) not found. Run: python hdl/generate_overlay.py --model $(MODEL)"; exit 1)
+# 	$(VIVADO) -mode batch -source scripts/build_overlay.tcl \
+# 		-tclargs "$(OVERLAY_DIR)" "$(BUILD_DIR)/reconfig" "llnn_bd" "$(JOBS)" "data/overlay/$(MODEL)"
 
-clean:
-ifdef MODEL
-	rm -rf "$(BUILD_DIR)"
-else
-	rm -rf build
-endif
+# clean:
+# ifdef MODEL
+# 	rm -rf "$(BUILD_DIR)"
+# else
+# 	rm -rf build
+# endif
+
+
+
+
+
+
+
+
 
 
 
@@ -270,152 +278,198 @@ endif
 
 
 
-# # LINUX
-# # =============================================================================
-# # Vivado FPGA Build System
-# # =============================================================================
 
-# MODEL ?= model1
-# PART  := xc7z020clg400-1
-# TOP   := top
-# PROJECT_NAME := $(TOP)
 
-# BUILD_DIR   := build/$(MODEL)
-# SV_DIR      := data/sv/$(MODEL)
-# OVERLAY_DIR := hdl/overlay
-# BOARD_REPO  := boards
 
-# # Vivado executable (assumes environment already sourced)
-# VIVADO ?= vivado
-# CLK_FREQ_MHZ ?= 25
 
-# # -----------------------------------------------------------------------------
-# # Source collection
-# # -----------------------------------------------------------------------------
-# MODEL_SV_SOURCES    := $(sort $(wildcard $(SV_DIR)/*.sv))
-# OVERLAY_SV_SOURCES  := $(sort $(wildcard $(OVERLAY_DIR)/*.sv))
-# OVERLAY_V_SOURCES   := $(sort $(wildcard $(OVERLAY_DIR)/*.v))
 
-# # Complete source list passed into Tcl
-# SOURCES := $(MODEL_SV_SOURCES) $(OVERLAY_SV_SOURCES) $(OVERLAY_V_SOURCES)
 
-# # -----------------------------------------------------------------------------
-# # sv2v conversion
-# # -----------------------------------------------------------------------------
-# SV2V_DIR   := data/verilog/$(MODEL)
-# SV2V_INPUT := $(filter-out $(SV_DIR)/Globals.sv,$(MODEL_SV_SOURCES))
-# SV2V_FILES := $(patsubst $(SV_DIR)/%.sv,$(SV2V_DIR)/%.v,$(SV2V_INPUT))
+# =============================================================================
+# Vivado FPGA Build System (Linux)
+# =============================================================================
 
-# JOBS ?= 4
+MODEL ?= model1
+PART  := xc7z020clg400-1
+TOP   := top
+PROJECT_NAME := $(TOP)
 
-# .PHONY: help print-sources sv2v project design open build build_overlay clean
+VIVADO_VERSION ?= 2025.2
 
-# help:
-# 	@echo ""
-# 	@echo "Vivado FPGA Build System"
-# 	@echo "========================"
-# 	@echo ""
-# 	@echo "Targets:"
-# 	@echo ""
-# 	@echo "  make print-sources [MODEL=modelX]"
-# 	@echo "      Print the complete resolved source list."
-# 	@echo ""
-# 	@echo "  make sv2v [MODEL=modelX]"
-# 	@echo "      Convert SystemVerilog to Verilog using sv2v."
-# 	@echo ""
-# 	@echo "  make project [MODEL=modelX]"
-# 	@echo "      Create Vivado project and add all sources."
-# 	@echo ""
-# 	@echo "  make design [MODEL=modelX]"
-# 	@echo "      Create Vivado project + block design flow."
-# 	@echo ""
-# 	@echo "  make open [MODEL=modelX]"
-# 	@echo "      Open the Vivado GUI."
-# 	@echo ""
-# 	@echo "  make build [MODEL=modelX]"
-# 	@echo "      Run synthesis + implementation."
-# 	@echo ""
-# 	@echo "  make build_overlay [MODEL=modelX]"
-# 	@echo "      Run overlay build flow."
-# 	@echo ""
-# 	@echo "  make clean [MODEL=modelX]"
-# 	@echo "      Delete a specific model project, or all build outputs."
-# 	@echo ""
+BUILD_DIR   := build/$(MODEL)
+SV_DIR      := data/sv/$(MODEL)
+OVERLAY_DIR := hdl/overlay
+BOARD_REPO  := boards
 
-# print-sources:
-# 	@echo "MODEL               = $(MODEL)"
-# 	@echo "TOP                 = $(TOP)"
-# 	@echo "PROJECT_NAME        = $(PROJECT_NAME)"
-# 	@echo "BUILD_DIR           = $(BUILD_DIR)"
-# 	@echo "SV_DIR              = $(SV_DIR)"
-# 	@echo "OVERLAY_DIR         = $(OVERLAY_DIR)"
-# 	@echo ""
-# 	@echo "Complete SOURCES:"
-# 	@for f in $(SOURCES); do echo "  $$f"; done
+# Vivado executable (assumes settings64.sh already sourced)
+VIVADO ?= vivado
 
-# sv2v:
-# 	@echo "Converting SystemVerilog -> Verilog for model: $(MODEL)"
-# 	@mkdir -p "$(SV2V_DIR)"
-# 	@for f in $(SV2V_INPUT); do \
-# 		base=$$(basename $$f .sv); \
-# 		echo "  $$base.sv -> $$base.v"; \
-# 		sv2v "$(SV_DIR)/Globals.sv" "$$f" > "$(SV2V_DIR)/$$base.v"; \
-# 	done
+CLK_FREQ_MHZ ?= 25
 
-# project:
-# 	@echo "Creating Vivado project for model: $(MODEL)"
-# 	@mkdir -p "$(BUILD_DIR)"
-# 	@if [ -z "$(strip $(SOURCES))" ]; then \
-# 		echo "Error: no sources found."; \
-# 		exit 1; \
-# 	fi
-# 	$(VIVADO) -mode batch -source scripts/project.tcl \
-# 		-tclargs "$(TOP)" "$(PART)" "$(BUILD_DIR)" "$(BOARD_REPO)" $(SOURCES)
+# -----------------------------------------------------------------------------
+# Source collection
+# -----------------------------------------------------------------------------
+MODEL_SV_SOURCES    := $(sort $(wildcard $(SV_DIR)/*.sv))
+OVERLAY_SV_SOURCES  := $(sort $(wildcard $(OVERLAY_DIR)/*.sv))
+OVERLAY_V_SOURCES   := $(sort $(wildcard $(OVERLAY_DIR)/*.v))
 
-# design:
-# 	@echo "Creating Vivado project + block design for model: $(MODEL)"
-# 	@mkdir -p "$(BUILD_DIR)"
-# 	@if [ -z "$(strip $(SOURCES))" ]; then \
-# 		echo "Error: no sources found."; \
-# 		exit 1; \
-# 	fi
-# 	$(VIVADO) -mode batch -source scripts/create_design.tcl \
-# 		-tclargs "$(TOP)" "$(PART)" "$(BUILD_DIR)" "$(BOARD_REPO)" "$(CLK_FREQ_MHZ)" $(SOURCES)
+# Complete source list passed into Tcl
+SOURCES := $(MODEL_SV_SOURCES) $(OVERLAY_SV_SOURCES) $(OVERLAY_V_SOURCES)
 
-# open:
-# 	@if [ ! -f "$(BUILD_DIR)/$(PROJECT_NAME).xpr" ]; then \
-# 		echo "Error: Vivado project not found."; \
-# 		echo "Expected: $(BUILD_DIR)/$(PROJECT_NAME).xpr"; \
-# 		echo "Run 'make project MODEL=$(MODEL)' first."; \
-# 		exit 1; \
-# 	fi
-# 	$(VIVADO) "$(BUILD_DIR)/$(PROJECT_NAME).xpr"
+# -----------------------------------------------------------------------------
+# sv2v conversion
+# -----------------------------------------------------------------------------
+SV2V_DIR   := data/verilog/$(MODEL)
+SV2V_INPUT := $(filter-out $(SV_DIR)/Globals.sv,$(MODEL_SV_SOURCES))
+SV2V_FILES := $(patsubst $(SV_DIR)/%.sv,$(SV2V_DIR)/%.v,$(SV2V_INPUT))
 
-# build:
-# 	@echo "Building model: $(MODEL)"
-# 	@if [ ! -f "$(BUILD_DIR)/$(PROJECT_NAME).xpr" ]; then \
-# 		echo "Error: Vivado project not found."; \
-# 		echo "Expected: $(BUILD_DIR)/$(PROJECT_NAME).xpr"; \
-# 		echo "Run 'make project MODEL=$(MODEL)' first."; \
-# 		exit 1; \
-# 	fi
-# 	$(VIVADO) -mode batch -source scripts/build.tcl \
-# 		-tclargs "$(TOP)" "$(BUILD_DIR)"
+# -----------------------------------------------------------------------------
+# Parallel build
+# -----------------------------------------------------------------------------
+JOBS ?= $(shell nproc)
 
-# build_overlay:
-# 	@echo "Building LLNN overlay (PYNQ-Z2) — static"
-# 	$(VIVADO) -mode batch -source scripts/build_overlay.tcl \
-# 		-tclargs "$(OVERLAY_DIR)" "$(BUILD_DIR)/overlay" "llnn_bd" "$(JOBS)" "$(SV_DIR)"
+# -----------------------------------------------------------------------------
+# Targets
+# -----------------------------------------------------------------------------
+.PHONY: help print-sources sv2v project design open build build_overlay build_reconfig clean
 
-# build_reconfig:
-# 	@echo "Building reconfigurable LLNN overlay (PYNQ-Z2)"
-# 	@test -d data/overlay/$(MODEL) || (echo "ERROR: data/overlay/$(MODEL) not found. Run: python hdl/generate_overlay.py --model $(MODEL)"; exit 1)
-# 	$(VIVADO) -mode batch -source scripts/build_overlay.tcl \
-# 		-tclargs "$(OVERLAY_DIR)" "$(BUILD_DIR)/reconfig" "llnn_bd" "$(JOBS)" "data/overlay/$(MODEL)"
+help:
+	@echo ""
+	@echo "Vivado FPGA Build System"
+	@echo "========================"
+	@echo ""
+	@echo "Targets:"
+	@echo ""
+	@echo "  make print-sources [MODEL=modelX]"
+	@echo "      Print the complete resolved source list."
+	@echo ""
+	@echo "  make sv2v [MODEL=modelX]"
+	@echo "      Convert SystemVerilog to Verilog using sv2v."
+	@echo ""
+	@echo "  make project [MODEL=modelX]"
+	@echo "      Create Vivado project and add all sources."
+	@echo ""
+	@echo "  make design [MODEL=modelX]"
+	@echo "      Create Vivado project + block design flow."
+	@echo ""
+	@echo "  make open [MODEL=modelX]"
+	@echo "      Open the Vivado GUI."
+	@echo ""
+	@echo "  make build [MODEL=modelX]"
+	@echo "      Run synthesis + implementation."
+	@echo ""
+	@echo "  make build_overlay [MODEL=modelX]"
+	@echo "      Run overlay build flow."
+	@echo ""
+	@echo "  make build_reconfig [MODEL=modelX]"
+	@echo "      Build reconfigurable overlay."
+	@echo ""
+	@echo "  make clean [MODEL=modelX]"
+	@echo "      Delete a specific model project or all build outputs."
+	@echo ""
 
-# clean:
-# ifdef MODEL
-# 	rm -rf "$(BUILD_DIR)"
-# else
-# 	rm -rf build
-# endif
+# -----------------------------------------------------------------------------
+# Debug helpers
+# -----------------------------------------------------------------------------
+print-sources:
+	@echo "MODEL               = $(MODEL)"
+	@echo "TOP                 = $(TOP)"
+	@echo "PROJECT_NAME        = $(PROJECT_NAME)"
+	@echo "BUILD_DIR           = $(BUILD_DIR)"
+	@echo "SV_DIR              = $(SV_DIR)"
+	@echo "OVERLAY_DIR         = $(OVERLAY_DIR)"
+	@echo ""
+	@echo "Complete SOURCES:"
+	@for f in $(SOURCES); do echo "  $$f"; done
+
+# -----------------------------------------------------------------------------
+# SystemVerilog -> Verilog conversion
+# -----------------------------------------------------------------------------
+sv2v:
+	@echo "Converting SystemVerilog -> Verilog for model: $(MODEL)"
+	@mkdir -p "$(SV2V_DIR)"
+	@for f in $(SV2V_INPUT); do \
+		base=$$(basename $$f .sv); \
+		echo "  $$base.sv -> $$base.v"; \
+		sv2v "$(SV_DIR)/Globals.sv" "$$f" > "$(SV2V_DIR)/$$base.v"; \
+	done
+
+# -----------------------------------------------------------------------------
+# Create Vivado project
+# -----------------------------------------------------------------------------
+project:
+	@echo "Creating Vivado project for model: $(MODEL)"
+	@mkdir -p "$(BUILD_DIR)"
+	@if [ -z "$(strip $(SOURCES))" ]; then \
+		echo "Error: no sources found."; \
+		exit 1; \
+	fi
+	$(VIVADO) -mode batch -source scripts/project.tcl \
+		-tclargs "$(TOP)" "$(PART)" "$(BUILD_DIR)" "$(BOARD_REPO)" $(SOURCES)
+
+# -----------------------------------------------------------------------------
+# Create block design
+# -----------------------------------------------------------------------------
+design:
+	@echo "Creating Vivado project + block design for model: $(MODEL)"
+	@mkdir -p "$(BUILD_DIR)"
+	@if [ -z "$(strip $(SOURCES))" ]; then \
+		echo "Error: no sources found."; \
+		exit 1; \
+	fi
+	$(VIVADO) -mode batch -source scripts/create_design.tcl \
+		-tclargs "$(TOP)" "$(PART)" "$(BUILD_DIR)" "$(BOARD_REPO)" "$(CLK_FREQ_MHZ)" $(SOURCES)
+
+# -----------------------------------------------------------------------------
+# Open GUI
+# -----------------------------------------------------------------------------
+open:
+	@if [ ! -f "$(BUILD_DIR)/$(PROJECT_NAME).xpr" ]; then \
+		echo "Error: Vivado project not found."; \
+		echo "Expected: $(BUILD_DIR)/$(PROJECT_NAME).xpr"; \
+		echo "Run 'make project MODEL=$(MODEL)' first."; \
+		exit 1; \
+	fi
+	$(VIVADO) "$(BUILD_DIR)/$(PROJECT_NAME).xpr"
+
+# -----------------------------------------------------------------------------
+# Build synthesis + implementation
+# -----------------------------------------------------------------------------
+build:
+	@echo "Building model: $(MODEL)"
+	@if [ ! -f "$(BUILD_DIR)/$(PROJECT_NAME).xpr" ]; then \
+		echo "Error: Vivado project not found."; \
+		echo "Expected: $(BUILD_DIR)/$(PROJECT_NAME).xpr"; \
+		echo "Run 'make project MODEL=$(MODEL)' first."; \
+		exit 1; \
+	fi
+	$(VIVADO) -mode batch -source scripts/build.tcl \
+		-tclargs "$(TOP)" "$(BUILD_DIR)"
+
+# -----------------------------------------------------------------------------
+# Static overlay build
+# -----------------------------------------------------------------------------
+build_overlay:
+	@echo "Building LLNN overlay (PYNQ-Z2) — static"
+	$(VIVADO) -mode batch -source scripts/build_overlay.tcl \
+		-tclargs "$(OVERLAY_DIR)" "$(BUILD_DIR)/overlay" "llnn_bd" "$(JOBS)" "$(SV_DIR)"
+
+# -----------------------------------------------------------------------------
+# Reconfigurable overlay build
+# -----------------------------------------------------------------------------
+build_reconfig:
+	@echo "Building reconfigurable LLNN overlay (PYNQ-Z2)"
+	@test -d data/overlay/$(MODEL) || \
+		(echo "ERROR: data/overlay/$(MODEL) not found."; \
+		echo "Run: python hdl/generate_overlay.py --model $(MODEL)"; exit 1)
+	$(VIVADO) -mode batch -source scripts/build_overlay.tcl \
+		-tclargs "$(OVERLAY_DIR)" "$(BUILD_DIR)/reconfig" "llnn_bd" "$(JOBS)" "data/overlay/$(MODEL)"
+
+# -----------------------------------------------------------------------------
+# Clean
+# -----------------------------------------------------------------------------
+clean:
+ifdef MODEL
+	rm -rf "$(BUILD_DIR)"
+else
+	rm -rf build
+endif

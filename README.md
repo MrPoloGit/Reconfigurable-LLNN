@@ -27,63 +27,203 @@ At run-time, the hardware loads the generated bitstream. When a new model is tra
 
 This paves the way for continuous system on embedded edge devices which are capable of detecting concept drift, requesting offline retrains, and hot-swapping network parameters entirely in the field without ever invoking the massive synthesis toolchain.
 
-### Creating the models
+## Setting up libraries and tools
+```bash
+# Set up model training and HDL generating
+sudo apt install python3
+sudo apt install python3-pip
+pip3 install -r requirements.txt
+```
+
+- Make sure vivado is installed and added to path
+- Download PYNQ-Z2 board files: https://www.tulembedded.com/FPGA/ProductsPYNQ-Z2.html#:~:text=Z2%20Board%20File
+- Extract and put them in a folder in root called `boards/tul/`
+- Also the constraints file in the `constraint/` folder
+
+We have set things up for a PYNQ-Z2 board, here are the [instructions](https://pynq.readthedocs.io/en/latest/getting_started/pynq_z2_setup.html) to set up the board. We are using the [LCFGLUT5T](https://docs.amd.com/r/en-US/ug953-vivado-7series-libraries/CFGLUT5) LUT for our example.
+
+## Creating the models
 
 The LiveLLNN project supports two distinct hardware generation flows. Both start from the same PyTorch models but diverge significantly at the HDL generation stage.
 
-#### Flow 1: Static LLNN (Original)
+### Flow 1: Static LLNN (Original)
 *Note: This flow bakes the truth tables directly into the static `case` statements of the generated HDL. Any change to the model requires a full Vivado re-synthesis.*
 This flow is useful for putting the original Static LLNN architecture directly onto the PYNQ board.
 
 ```bash
 # 1. Train a static model
-python main.py --train --save --name model_static --dataset mnist20x20 -s 5 --num-iterations 15000
+python3 main.py --train --save --name model_static --dataset mnist20x20 -s 5 --num-iterations 15000
 
 # 2. Test the trained model
-python main.py --load --name model_static --dataset mnist20x20
+python3 main.py --load --name model_static --dataset mnist20x20
 
 # 3. Generate the static HDL code (SV or VHDL)
-python main.py --load --sv --name model_static --dataset mnist20x20
+python3 main.py --load --sv --name model_static --dataset mnist20x20
 ```
 Once step 3 is complete, you use `make build_overlay MODEL=model_static` to synthesize the static bitstream.
 
-#### Flow 2: Reconfigurable LLNN (New)
+### Flow 2: Reconfigurable LLNN (New)
 *Note: This flow extracts the connectivity topological graph of a base model to generate a fabric of SoftLUT5 cells. Truth tables are exported as binaries to be hot-swapped over an AXI memory map at runtime, completely bypassing Vivado re-synthesis!*
 
 To demonstrate hardware persistence and run-time orientation hot-swapping:
 
 ```bash
 # 1. Train the base model on standard MNIST and EXPORT its wiring graph
-python main.py --train --save --name model_base --dataset mnist20x20 -s 5 --num-iterations 15000 --export-wiring wiring/topo.json
+python3 main.py --train --save --name model_base --dataset mnist20x20 -s 5 --num-iterations 15000 --export-wiring wiring/topo.json
 
 # 2. Train a second model on rotated MNIST, explicitly LOADING the base wiring graph
-python main.py --train --save --name model_rot --dataset mnist20x20_rotated -s 5 --num-iterations 15000 --wiring wiring/topo.json
+python3 main.py --train --save --name model_rot --dataset mnist20x20_rotated -s 5 --num-iterations 15000 --wiring wiring/topo.json
 
 # 3. Generate the Reconfigurable Overlay HDL (Only ever needs to be done once for model_base)
-python hdl/generate_overlay.py --model model_base
+python3 hdl/generate_overlay.py --model model_base
 
 # 4. Extract the software weights for both models
-python scripts/extract_weights.py --model model_base
-python scripts/extract_weights.py --model model_rot
+python3 scripts/extract_weights.py --model model_base
+python3 scripts/extract_weights.py --model model_rot
 ```
 Once step 3 is complete, you use `make build_reconfig MODEL=model_base` to synthesize the static bitstream. Once deployed to the PYNQ board, you can dynamically load the `weights.json` (or `weights.bin`) for either model into the PS and swap between recognizing standard and rotated MNIST in sub-milliseconds without touching Vivado!
 
-### Synthesizing
+## Synthesizing
 
-#### Setup
-- Make sure vivado is installed.
-- Download PYNQ-Z2 board files: https://www.tulembedded.com/FPGA/ProductsPYNQ-Z2.html#:~:text=Z2%20Board%20File
-- Extract and put them in a folder in root called `board/tul/`
-- Also the constraints file in the `constraint/` folder
+### FPGA Build Flow (Vivado Makefile)
 
-We have set things up for a PYNQ-Z2 board, here are the [instructions](https://pynq.readthedocs.io/en/latest/getting_started/pynq_z2_setup.html) to set up the board. We are using the [LCFGLUT5T](https://docs.amd.com/r/en-US/ug953-vivado-7series-libraries/CFGLUT5) LUT for our example.
+The repository includes a Makefile that automates the Vivado build process for deploying LLNN models onto the PYNQ-Z2 FPGA. The Makefile wraps common Vivado Tcl flows for project creation, block design generation, synthesis, and overlay builds.
+
+Before running any commands, ensure the Vivado environment is sourced:
 
 ```bash
-make help      # print out instructions on usage
-make project   # creates the basic project with the constraints and necessary files included
-make open      # opens the project in the vivado gui
-make bitstream # synthesize
-make clean     # cleans everything in build
+# Example
+source /tools/Xilinx/Vivado/2025.2/settings64.sh
+```
+
+### Flow 3: Static LLNN FPGA Build
+
+Note: This flow synthesizes the HDL generated by main.py --sv directly into FPGA logic. Any change to the model requires a full Vivado re-build.
+
+This flow is used for deploying the static LLNN architecture where the truth tables are compiled directly into hardware.
+
+```bash
+# 1. Verify the generated HDL sources
+make print-sources MODEL=model_static
+
+# 2. Create the Vivado project and import all HDL sources
+make project MODEL=model_static
+
+# 3. Generate the Zynq block design (PS + PL integration)
+make design MODEL=model_static
+
+# 4. Build the FPGA bitstream (synthesis + implementation)
+make build MODEL=model_static
+```
+
+The resulting artifacts will be placed in:
+
+```bash
+build/model_static/
+```
+
+Key outputs include:
+
+```bash
+top.bit
+top.hwh
+top.xsa
+```
+
+These can then be deployed to the PYNQ board for execution.
+
+### Flow 4: Static LLNN Overlay Build
+
+Instead of compiling the entire LLNN datapath as custom RTL, this flow builds the LLNN overlay fabric composed of SoftLUT5 cells.
+
+```bash
+make build_overlay MODEL=model_static
+```
+
+This runs the Vivado overlay flow defined in:
+
+```bash
+scripts/build_overlay.tcl
+```
+
+Outputs are written to:
+
+```bash
+build/model_static/overlay/
+```
+
+This produces the FPGA bitstream containing the SoftLUT5 LUT fabric overlay used by the LLNN accelerator.
+
+### Flow 5: Reconfigurable LLNN Overlay Build
+
+For the runtime-reconfigurable LLNN architecture, the FPGA only contains a fixed SoftLUT5 fabric. The actual LUT truth tables are loaded dynamically by the processor.
+
+This allows models to be swapped without re-running Vivado.
+
+First ensure the overlay HDL was generated:
+
+```bash
+python3 hdl/generate_overlay.py --model model_base
+```
+
+Then build the FPGA overlay:
+
+```bash
+make build_reconfig MODEL=model_base
+```
+
+This compiles the static FPGA fabric only once.
+
+The output overlay bitstream will be placed in:
+
+```bash
+build/model_base/reconfig/
+```
+
+At runtime, the PYNQ processor can load different models by writing new LUT contents over AXI using the exported weight files.
+
+Example runtime swap:
+
+```bash
+weights_base.json
+weights_rot.json
+```
+
+Switching between them requires no FPGA reprogramming.
+
+
+### Cleaning Build Outputs
+
+To remove build artifacts for a specific model:
+
+```bash
+make clean MODEL=model_static
+```
+
+To remove all build outputs:
+
+```bash
+make clean
+```
+
+### Useful Debug Commands
+
+Print all HDL sources detected by the build system:
+
+```bash
+make print-sources MODEL=model_static
+```
+
+Convert SystemVerilog sources to Verilog (for tools requiring Verilog):
+
+```bash
+make sv2v MODEL=model_static
+```
+
+Open the Vivado GUI project:
+
+```bash
+make open MODEL=model_static
 ```
 
 ## Importing LUTLayer
@@ -118,14 +258,3 @@ This project is an architectural extension of the foundational LLNN concepts det
   doi={10.1109/TCSI.2025.3606054}
 }
 ```
-
-https://docs.amd.com/r/en-US/ug953-vivado-7series-libraries/CFGLUT5
-
-## NOTES:
-- get rid vhdl stuff or update to also have clk and rst?
-- clean up all other markdown files
-- make sure to add in makefile option to use sv, vhdl, or verilog?
-- maybe remove sv and change it to verilog?
-- maybe an ability to select certain parts of the model to be static and not full reconfigurable
-- how to update weights? does the model architecture change in training? we need to change lutnn and lutlayer to allow use to pass a previous model and do extra training on it
-- use sv2v on tb_NET.sv to make tb_NET.v
