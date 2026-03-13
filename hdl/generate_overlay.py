@@ -501,7 +501,7 @@ def gen_overlay(model, name):
     export_wiring_map(sv_path, wiring_layers, num_neurons, lut_size,
                       number_of_inputs)
 
-    print(f"\n[overlay] ✅ Overlay HDL written to: {sv_path}/")
+    print(f"\n[overlay] Overlay HDL written to: {sv_path}/")
     return sv_path
 
 

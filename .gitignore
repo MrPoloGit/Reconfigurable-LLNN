@@ -24,8 +24,6 @@ constraints/
 wiring/
 NA/
 .nfs*
-sim.out
 
 # Random
-*.sv
-*.v
+sim.out
