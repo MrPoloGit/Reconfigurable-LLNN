@@ -4,7 +4,7 @@ utils/__pycache__/
 models/
 lutnn/__pycache__/
 data-mnist/
-data/
+# data/
 lutnn.egg-info/
 venv/
 .DS_Store
