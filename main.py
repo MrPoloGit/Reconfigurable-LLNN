@@ -25,7 +25,7 @@ def get_args():
     # clean
     parser.add_argument("--clean", choices=["models", "data", "all"], help="Delete generated artifacts. Use with --name to delete only that model's outputs.")
     
-    parser.add_argument('--dataset', type=str, choices=['mnist', 'mnist20x20', 'mnist20x20_rotated', 'cifar10-3', 'cifar10-31', 'adult', 'breast', 'jsc'], default="mnist20x20", help='Dataset to use')
+    parser.add_argument('--dataset', type=str, choices=['mnist', 'mnist20x20', 'mnist20x20_rotated', 'fashion_mnist20x20', 'cifar10-3', 'cifar10-31', 'adult', 'breast', 'jsc'], default="mnist20x20", help='Dataset to use')
     parser.add_argument('--seed', type=int, default=0, help='seed (default: 0)')
     parser.add_argument('--batch-size', '-bs', type=int, default=128, help='batch size (default: 128)')
     parser.add_argument('--learning-rate', '-lr', type=float, default=0.01, help='learning rate (default: 0.01)')
@@ -116,7 +116,9 @@ def evaluation(model, loader, device, mode=False):
 
 
 def load_dataset(args):
-    if "mnist20x20_rotated" in args.dataset:
+    if "fashion_mnist20x20" in args.dataset:
+        train_loader, test_loader, input_dim_dataset, num_classes = load_mnist_dataset(args.batch_size, mnist20=True, rotate_90=False, fashion=True)
+    elif "mnist20x20_rotated" in args.dataset:
         train_loader, test_loader, input_dim_dataset, num_classes = load_mnist_dataset(args.batch_size, mnist20=True, rotate_90=True)
     elif "mnist20x20" in args.dataset:
         train_loader, test_loader, input_dim_dataset, num_classes = load_mnist_dataset(args.batch_size, mnist20=True, rotate_90=False)

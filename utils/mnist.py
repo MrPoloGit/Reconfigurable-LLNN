@@ -1,5 +1,5 @@
 import torch
-from torchvision.datasets import MNIST
+from torchvision.datasets import MNIST, FashionMNIST
 from torchvision.transforms import transforms
 
 
@@ -37,7 +37,7 @@ class MNIST20Transform:
         return value1, value2
 
 
-def load_mnist_dataset(batch_size, mnist20=False, rotate_90=False):
+def load_mnist_dataset(batch_size, mnist20=False, rotate_90=False, fashion=False):
     trans = [transforms.ToTensor()]
     
     if rotate_90:
@@ -45,10 +45,14 @@ def load_mnist_dataset(batch_size, mnist20=False, rotate_90=False):
         trans.append(transforms.Lambda(lambda x: torch.rot90(x, k=1, dims=[1, 2])))
         
     if mnist20:
-        trans.append(MNIST20Transform())
+        if fashion:
+            trans.append(transforms.CenterCrop(20))
+        else:
+            trans.append(MNIST20Transform())
     transform = transforms.Compose(trans)
-    train_set = MNIST('./data-mnist', train=True, download=True, transform=transform)
-    test_set = MNIST('./data-mnist', train=False, transform=transform)
+    DatasetClass = FashionMNIST if fashion else MNIST
+    train_set = DatasetClass('./data-mnist', train=True, download=True, transform=transform)
+    test_set = DatasetClass('./data-mnist', train=False, transform=transform)
 
     # train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, pin_memory=True,
     #                                            drop_last=True, num_workers=4)
